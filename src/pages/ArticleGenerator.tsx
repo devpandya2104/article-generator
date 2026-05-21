@@ -1494,95 +1494,163 @@ function BulkLinksCard({ pairs }: { pairs: { name: string; url: string }[] }) {
 
 /* ── Custom Cursor ──────────────────────────────────────────────── */
 function CustomCursor() {
-  const dotRef  = useRef<HTMLDivElement>(null);
-  const ringRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const dot  = dotRef.current;
-    const ring = ringRef.current;
-    if (!dot || !ring) return;
-    if (!window.matchMedia('(pointer: fine)').matches) return;
+    const canvas = canvasRef.current;
+    if (!canvas || !window.matchMedia('(pointer: fine)').matches) return;
 
-    gsap.set([dot, ring], { xPercent: -50, yPercent: -50, x: -200, y: -200 });
+    const ctx = canvas.getContext('2d')!;
+    const dpr = window.devicePixelRatio || 1;
+
+    const resize = () => {
+      canvas.width  = window.innerWidth  * dpr;
+      canvas.height = window.innerHeight * dpr;
+      canvas.style.width  = window.innerWidth  + 'px';
+      canvas.style.height = window.innerHeight + 'px';
+      ctx.scale(dpr, dpr);
+    };
+    resize();
+    window.addEventListener('resize', resize);
 
     const styleEl = document.createElement('style');
     styleEl.textContent = '*, *::before, *::after { cursor: none !important; }';
     document.head.appendChild(styleEl);
 
-    let mx = -200, my = -200, rx = -200, ry = -200;
-    let cursorState = 'default';
-
-    const tick = () => {
-      rx += (mx - rx) * 0.1;
-      ry += (my - ry) * 0.1;
-      gsap.set(ring, { x: rx, y: ry });
+    type HoverState = 'default' | 'button' | 'text';
+    const state = {
+      x: -300, y: -300,
+      trail: [] as { x: number; y: number }[],
+      hover: 'default' as HoverState,
+      orbitAngle: 0,
+      bursts: [] as { x: number; y: number; t: number }[],
+      visible: false,
     };
-    gsap.ticker.add(tick);
 
     const onMove = (e: MouseEvent) => {
-      mx = e.clientX;
-      my = e.clientY;
-      gsap.set(dot, { x: mx, y: my });
+      state.x = e.clientX;
+      state.y = e.clientY;
+      state.visible = true;
+      state.trail.push({ x: state.x, y: state.y });
+      if (state.trail.length > 32) state.trail.shift();
     };
-
-    const setState = (state: string) => {
-      if (state === cursorState) return;
-      cursorState = state;
-      if (state === 'button') {
-        gsap.to(ring, { scale: 1.65, backgroundColor: 'rgba(139,92,246,0.1)', borderColor: 'rgba(167,139,250,0.95)', boxShadow: '0 0 24px rgba(139,92,246,0.5)', duration: 0.35, ease: 'back.out(1.7)' });
-        gsap.to(dot, { scale: 0, duration: 0.2 });
-      } else if (state === 'text') {
-        gsap.to(ring, { scaleX: 0.1, scaleY: 1.6, borderColor: 'rgba(167,139,250,0.9)', backgroundColor: 'transparent', boxShadow: 'none', duration: 0.3, ease: 'power3.out' });
-        gsap.to(dot, { scale: 0, duration: 0.2 });
-      } else {
-        gsap.to(ring, { scale: 1, scaleX: 1, scaleY: 1, backgroundColor: 'transparent', borderColor: 'rgba(139,92,246,0.55)', boxShadow: '0 0 12px rgba(139,92,246,0.15)', duration: 0.65, ease: 'elastic.out(1, 0.45)' });
-        gsap.to(dot, { scale: 1, duration: 0.4, ease: 'elastic.out(1, 0.5)' });
-      }
-    };
-
     const onOver = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      if (t.closest('input, textarea, select')) setState('text');
-      else if (t.closest('a, button, [role="button"], label')) setState('button');
-      else setState('default');
+      if (t.closest('input,textarea,select'))           state.hover = 'text';
+      else if (t.closest('a,button,[role="button"],label')) state.hover = 'button';
+      else                                               state.hover = 'default';
     };
-
-    const onDown = () => {
-      gsap.to(ring, { scale: cursorState === 'button' ? 1.2 : 0.75, duration: 0.1, ease: 'power3.out' });
-      if (cursorState === 'default') gsap.to(dot, { scale: 3, opacity: 0.5, duration: 0.1 });
-    };
-    const onUp = () => {
-      gsap.to(ring, { scale: cursorState === 'button' ? 1.65 : 1, duration: 0.6, ease: 'elastic.out(1, 0.4)' });
-      if (cursorState === 'default') gsap.to(dot, { scale: 1, opacity: 1, duration: 0.4, ease: 'elastic.out(1, 0.5)' });
-    };
-    const onLeave = () => gsap.to([dot, ring], { opacity: 0, duration: 0.4 });
-    const onEnter = () => gsap.to([dot, ring], { opacity: 1, duration: 0.3 });
+    const onDown  = (e: MouseEvent) => state.bursts.push({ x: e.clientX, y: e.clientY, t: Date.now() });
+    const onLeave = () => { state.visible = false; };
+    const onEnter = () => { state.visible = true;  };
 
     document.addEventListener('mousemove',  onMove);
     document.addEventListener('mouseover',  onOver);
     document.addEventListener('mousedown',  onDown);
-    document.addEventListener('mouseup',    onUp);
     document.addEventListener('mouseleave', onLeave);
     document.addEventListener('mouseenter', onEnter);
 
+    let raf: number;
+
+    const draw = () => {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+      if (!state.visible) { raf = requestAnimationFrame(draw); return; }
+
+      const { x, y, trail, hover, bursts } = state;
+
+      /* ── Ink trail ── */
+      if (trail.length > 1) {
+        for (let i = 1; i < trail.length; i++) {
+          const t = i / trail.length;
+          ctx.beginPath();
+          ctx.moveTo(trail[i - 1].x, trail[i - 1].y);
+          ctx.lineTo(trail[i].x, trail[i].y);
+          ctx.strokeStyle = `rgba(139,92,246,${t * t * 0.5})`;
+          ctx.lineWidth   = t * 2.5;
+          ctx.lineCap     = 'round';
+          ctx.stroke();
+        }
+      }
+
+      /* ── Button: orbiting ring ── */
+      if (hover === 'button') {
+        state.orbitAngle += 0.055;
+        const R = 21;
+        ctx.beginPath();
+        ctx.arc(x, y, R, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(139,92,246,0.4)';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        for (const [offset, r, a] of [[0, 3.5, 1], [Math.PI, 2.5, 0.55]] as [number,number,number][]) {
+          const ox = x + Math.cos(state.orbitAngle + offset) * R;
+          const oy = y + Math.sin(state.orbitAngle + offset) * R;
+          ctx.save();
+          ctx.shadowColor = 'rgba(167,139,250,0.9)';
+          ctx.shadowBlur  = 6;
+          ctx.beginPath();
+          ctx.arc(ox, oy, r, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(167,139,250,${a})`;
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+      /* ── Text: I-beam ── */
+      else if (hover === 'text') {
+        const H = 15, CAP = 6;
+        ctx.strokeStyle = 'rgba(167,139,250,0.9)';
+        ctx.lineWidth = 1.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(x, y - H);   ctx.lineTo(x, y + H);   ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - CAP, y - H); ctx.lineTo(x + CAP, y - H); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x - CAP, y + H); ctx.lineTo(x + CAP, y + H); ctx.stroke();
+      }
+      /* ── Default: glowing core dot ── */
+      else {
+        ctx.save();
+        ctx.shadowColor = 'rgba(139,92,246,0.85)';
+        ctx.shadowBlur  = 16;
+        ctx.beginPath();
+        ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = '#ffffff';
+        ctx.fill();
+        ctx.restore();
+      }
+
+      /* ── Click burst: radial spokes ── */
+      const now = Date.now();
+      state.bursts = bursts.filter(b => {
+        const p = Math.min((now - b.t) / 480, 1);
+        if (p >= 1) return false;
+        const ease = 1 - Math.pow(1 - p, 3);
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          ctx.beginPath();
+          ctx.moveTo(b.x + Math.cos(angle) * (6 + ease * 4),  b.y + Math.sin(angle) * (6 + ease * 4));
+          ctx.lineTo(b.x + Math.cos(angle) * (10 + ease * 20), b.y + Math.sin(angle) * (10 + ease * 20));
+          ctx.strokeStyle = `rgba(167,139,250,${(1 - p) * 0.9})`;
+          ctx.lineWidth   = 1.5 * (1 - p * 0.6);
+          ctx.lineCap     = 'round';
+          ctx.stroke();
+        }
+        return true;
+      });
+
+      raf = requestAnimationFrame(draw);
+    };
+    draw();
+
     return () => {
+      cancelAnimationFrame(raf);
       styleEl.remove();
-      gsap.ticker.remove(tick);
+      window.removeEventListener('resize', resize);
       document.removeEventListener('mousemove',  onMove);
       document.removeEventListener('mouseover',  onOver);
       document.removeEventListener('mousedown',  onDown);
-      document.removeEventListener('mouseup',    onUp);
       document.removeEventListener('mouseleave', onLeave);
       document.removeEventListener('mouseenter', onEnter);
     };
   }, []);
 
-  return (
-    <>
-      <div ref={ringRef} className="fixed top-0 left-0 pointer-events-none z-[9999]"
-        style={{ width: 40, height: 40, borderRadius: '50%', border: '1.5px solid rgba(139,92,246,0.55)', boxShadow: '0 0 12px rgba(139,92,246,0.15)', willChange: 'transform' }} />
-      <div ref={dotRef} className="fixed top-0 left-0 pointer-events-none z-[9999]"
-        style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff', boxShadow: '0 0 8px rgba(255,255,255,0.9), 0 0 16px rgba(139,92,246,0.7)', willChange: 'transform', mixBlendMode: 'difference' }} />
-    </>
-  );
+  return <canvas ref={canvasRef} className="fixed inset-0 pointer-events-none z-[9999]" />;
 }
