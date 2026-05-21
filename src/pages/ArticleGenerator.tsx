@@ -1,9 +1,10 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import gsap from 'gsap';
 import {
-  Sparkles, ArrowLeft, Loader2, CheckCircle2, AlertCircle, Copy,
+  Sparkles, Loader2, CheckCircle2, AlertCircle, Copy,
   ExternalLink, Trash2, Pencil, Link2, Wand2, FileText, RotateCw,
   Plus, ChevronDown, ChevronUp, Settings2, Search, Globe, Check,
-  Clock,
+  Clock, Zap,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -150,6 +151,13 @@ async function edgeFetch<T>(path: string, body: object): Promise<T> {
   return data as T;
 }
 
+/* ─── Shared style helpers ─── */
+const card = 'rounded-2xl border border-white/[0.07] bg-white/[0.04] backdrop-blur-sm';
+const inputCls = 'mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20';
+const labelCls = 'block text-sm font-medium text-slate-300';
+const btnPrimary = 'inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-purple-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-900/30 transition hover:from-violet-500 hover:to-purple-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none';
+const btnSecondary = 'inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.05] px-4 py-2.5 text-sm font-medium text-slate-300 transition hover:bg-white/10 hover:text-slate-100';
+
 export default function ArticleGenerator() {
   const [activeTab, setActiveTab] = useState<Tab>('generator');
   const [topic, setTopic] = useState('');
@@ -160,7 +168,6 @@ export default function ArticleGenerator() {
   const [anchors, setAnchors] = useState<Anchor[]>([]);
   const [titlePrompt, setTitlePrompt] = useState(DEFAULT_TITLE_PROMPT);
   const [articlePrompt, setArticlePrompt] = useState(DEFAULT_ARTICLE_PROMPT);
-  const [promptsLoaded, setPromptsLoaded] = useState(false);
   const [savingPrompts, setSavingPrompts] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [titleSource, setTitleSource] = useState<TitleSource>('ai');
@@ -173,12 +180,16 @@ export default function ArticleGenerator() {
   const [batchId, setBatchId] = useState<string | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
-  const abortRef = useRef(false);
-  const editInputRef = useRef<HTMLInputElement | null>(null);
-
   const [historyBatches, setHistoryBatches] = useState<HistoryBatch[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
 
+  const abortRef = useRef(false);
+  const editInputRef = useRef<HTMLInputElement | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const prevArticleCount = useRef(0);
+
+  /* ── Load shared prompts ── */
   useEffect(() => {
     (async () => {
       const { data } = await supabase
@@ -191,26 +202,87 @@ export default function ArticleGenerator() {
           if (row.id === 'article_prompt' && row.content) setArticlePrompt(row.content);
         }
       }
-      setPromptsLoaded(true);
     })();
   }, []);
 
+  /* ── Anonymous sign-in ── */
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!data.session?.user) await supabase.auth.signInAnonymously();
+    })();
+  }, []);
+
+  /* ── Focus edit input ── */
+  useEffect(() => {
+    if (editingIndex !== null) editInputRef.current?.focus();
+  }, [editingIndex]);
+
+  /* ── GSAP: floating background orbs ── */
+  useEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.to('.bg-orb-1', { x: 120, y: 80, duration: 14, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+      gsap.to('.bg-orb-2', { x: -100, y: -70, duration: 18, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 2 });
+      gsap.to('.bg-orb-3', { x: 80, y: -100, duration: 22, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 4 });
+    });
+    return () => ctx.revert();
+  }, []);
+
+  /* ── GSAP: page entrance ── */
+  useLayoutEffect(() => {
+    const ctx = gsap.context(() => {
+      gsap.timeline({ defaults: { ease: 'power3.out' } })
+        .from('.anim-header', { y: -50, opacity: 0, duration: 0.8 })
+        .from('.anim-badge', { y: 30, opacity: 0, duration: 0.7 }, '-=0.4')
+        .from('.anim-title', { y: 40, opacity: 0, duration: 0.8 }, '-=0.5')
+        .from('.anim-subtitle', { y: 30, opacity: 0, duration: 0.7 }, '-=0.5');
+    }, rootRef);
+    return () => ctx.revert();
+  }, []);
+
+  /* ── GSAP: step transition ── */
+  useEffect(() => {
+    gsap.fromTo('.step-panel', { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' });
+  }, [step]);
+
+  /* ── GSAP: tab transition ── */
+  useEffect(() => {
+    gsap.fromTo('.tab-panel', { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.45, ease: 'power2.out' });
+  }, [activeTab]);
+
+  /* ── GSAP: title cards stagger ── */
+  useEffect(() => {
+    if (step === 'titles' && titles.length > 0) {
+      gsap.fromTo('.title-item',
+        { opacity: 0, x: -28 },
+        { opacity: 1, x: 0, duration: 0.45, stagger: 0.05, ease: 'power2.out', delay: 0.3 }
+      );
+    }
+  }, [step]);
+
+  /* ── GSAP: article rows stagger ── */
+  useEffect(() => {
+    if (articles.length > 0 && articles.length !== prevArticleCount.current) {
+      prevArticleCount.current = articles.length;
+      gsap.fromTo('.article-row',
+        { opacity: 0, y: 14 },
+        { opacity: 1, y: 0, duration: 0.4, stagger: 0.04, ease: 'power2.out', delay: 0.15 }
+      );
+    }
+  }, [articles.length]);
+
+  /* ── Data callbacks ── */
   const savePromptsToDb = useCallback(async () => {
     setSavingPrompts(true);
     setError(null);
     try {
-      const { error: e1 } = await supabase.from('shared_prompts').update({
-        content: titlePrompt,
-        updated_at: new Date().toISOString(),
-      }).eq('id', 'title_prompt');
-
+      const { error: e1 } = await supabase.from('shared_prompts')
+        .update({ content: titlePrompt, updated_at: new Date().toISOString() })
+        .eq('id', 'title_prompt');
       if (e1) throw new Error(`Title prompt save failed: ${e1.message}`);
-
-      const { error: e2 } = await supabase.from('shared_prompts').update({
-        content: articlePrompt,
-        updated_at: new Date().toISOString(),
-      }).eq('id', 'article_prompt');
-
+      const { error: e2 } = await supabase.from('shared_prompts')
+        .update({ content: articlePrompt, updated_at: new Date().toISOString() })
+        .eq('id', 'article_prompt');
       if (e2) throw new Error(`Article prompt save failed: ${e2.message}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save prompts');
@@ -219,19 +291,6 @@ export default function ArticleGenerator() {
     }
   }, [titlePrompt, articlePrompt]);
 
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session?.user) {
-        await supabase.auth.signInAnonymously();
-      }
-    })();
-  }, []);
-
-  useEffect(() => {
-    if (editingIndex !== null) editInputRef.current?.focus();
-  }, [editingIndex]);
-
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
@@ -239,10 +298,7 @@ export default function ArticleGenerator() {
         .from('article_batches')
         .select('id, topic, created_at, requested_count, language')
         .order('created_at', { ascending: false });
-      if (!batches || batches.length === 0) {
-        setHistoryBatches([]);
-        return;
-      }
+      if (!batches || batches.length === 0) { setHistoryBatches([]); return; }
       const batchIds = batches.map((b) => b.id);
       const { data: arts } = await supabase
         .from('articles')
@@ -250,38 +306,24 @@ export default function ArticleGenerator() {
         .in('batch_id', batchIds);
       const artsByBatch: Record<string, HistoryBatchArticle[]> = {};
       for (const a of (arts || [])) {
-        (artsByBatch[a.batch_id] ||= []).push({
-          id: a.id,
-          title: a.title,
-          google_doc_url: a.google_doc_url,
-          status: a.status,
-        });
+        (artsByBatch[a.batch_id] ||= []).push({ id: a.id, title: a.title, google_doc_url: a.google_doc_url, status: a.status });
       }
       setHistoryBatches(batches.map((b) => ({
-        id: b.id,
-        topic: b.topic,
-        created_at: b.created_at,
-        requested_count: b.requested_count,
-        language: b.language,
+        id: b.id, topic: b.topic, created_at: b.created_at,
+        requested_count: b.requested_count, language: b.language,
         articles: artsByBatch[b.id] || [],
       })));
-    } catch {
-      // best-effort
-    } finally {
-      setHistoryLoading(false);
-    }
+    } catch { /* best-effort */ } finally { setHistoryLoading(false); }
   }, []);
 
   useEffect(() => {
     if (activeTab === 'history') loadHistory();
   }, [activeTab, loadHistory]);
 
-  const parsedCustomTitles = useMemo(() => {
-    return customTitlesText
-      .split(/[,\n]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }, [customTitlesText]);
+  const parsedCustomTitles = useMemo(
+    () => customTitlesText.split(/[,\n]/).map((s) => s.trim()).filter(Boolean),
+    [customTitlesText]
+  );
 
   const useCustomTitles = useCallback(() => {
     if (!parsedCustomTitles.length) return;
@@ -293,22 +335,12 @@ export default function ArticleGenerator() {
     setArticles((prev) => prev.map((a, i) => (i === idx ? { ...a, ...patch } : a)));
   }, []);
 
-  const validAnchors = useMemo(
-    () => anchors.filter((a) => a.text.trim() && a.url.trim()),
-    [anchors]
-  );
-
-  const addAnchor = useCallback(() => {
-    setAnchors((prev) => [...prev, { text: '', url: '' }]);
-  }, []);
-
+  const validAnchors = useMemo(() => anchors.filter((a) => a.text.trim() && a.url.trim()), [anchors]);
+  const addAnchor = useCallback(() => setAnchors((prev) => [...prev, { text: '', url: '' }]), []);
   const updateAnchor = useCallback((idx: number, field: keyof Anchor, value: string) => {
     setAnchors((prev) => prev.map((a, i) => (i === idx ? { ...a, [field]: value } : a)));
   }, []);
-
-  const removeAnchor = useCallback((idx: number) => {
-    setAnchors((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
+  const removeAnchor = useCallback((idx: number) => setAnchors((prev) => prev.filter((_, i) => i !== idx)), []);
 
   const isCustomTitlePrompt = titlePrompt !== DEFAULT_TITLE_PROMPT;
   const isCustomArticlePrompt = articlePrompt !== DEFAULT_ARTICLE_PROMPT;
@@ -318,63 +350,46 @@ export default function ArticleGenerator() {
     setError(null);
     setLoadingTitles(true);
     try {
-      const payload: Record<string, unknown> = { topic: topic.trim(), count, titlePrompt };
-      const data = await edgeFetch<{ titles: string[] }>('generate-titles', payload);
+      const data = await edgeFetch<{ titles: string[] }>('generate-titles', { topic: topic.trim(), count, titlePrompt });
       setTitles(data.titles);
       setStep('titles');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate titles');
-    } finally {
-      setLoadingTitles(false);
-    }
-  }, [topic, count, titlePrompt, isCustomTitlePrompt]);
+    } finally { setLoadingTitles(false); }
+  }, [topic, count, titlePrompt]);
 
-  const removeTitle = useCallback((idx: number) => {
-    setTitles((prev) => prev.filter((_, i) => i !== idx));
-  }, []);
+  const removeTitle = useCallback((idx: number) => setTitles((prev) => prev.filter((_, i) => i !== idx)), []);
 
   const startEditing = useCallback((idx: number, title: string) => {
-    setEditingIndex(idx);
-    setEditValue(title);
+    setEditingIndex(idx); setEditValue(title);
   }, []);
 
   const commitEdit = useCallback(() => {
     if (editingIndex === null) return;
     const trimmed = editValue.trim();
     if (trimmed) setTitles((prev) => prev.map((t, i) => (i === editingIndex ? trimmed : t)));
-    setEditingIndex(null);
-    setEditValue('');
+    setEditingIndex(null); setEditValue('');
   }, [editingIndex, editValue]);
 
   const generateArticles = useCallback(async () => {
     if (!titles.length) return;
     setError(null);
     abortRef.current = false;
-
-    const initial: ArticleEntry[] = titles.map((title) => ({ title, status: 'pending' as ArticleStatus }));
-    setArticles(initial);
+    setArticles(titles.map((title) => ({ title, status: 'pending' as ArticleStatus })));
     setStep('generating');
 
     let currentBatchId = batchId;
     try {
       if (!currentBatchId) {
-        const { data: batch } = await supabase
-          .from('article_batches')
-          .insert({
-            topic: topic.trim(),
-            requested_count: titles.length,
-            status: 'processing',
-            min_word_count: minWordCount,
-            max_word_count: maxWordCount,
-            language,
-            anchors: validAnchors,
-            title_prompt: isCustomTitlePrompt ? titlePrompt : '',
-            article_prompt: isCustomArticlePrompt ? articlePrompt : '',
-          })
-          .select('id').maybeSingle();
+        const { data: batch } = await supabase.from('article_batches').insert({
+          topic: topic.trim(), requested_count: titles.length, status: 'processing',
+          min_word_count: minWordCount, max_word_count: maxWordCount, language,
+          anchors: validAnchors,
+          title_prompt: isCustomTitlePrompt ? titlePrompt : '',
+          article_prompt: isCustomArticlePrompt ? articlePrompt : '',
+        }).select('id').maybeSingle();
         if (batch?.id) { currentBatchId = batch.id; setBatchId(batch.id); }
       }
-
       if (currentBatchId) {
         const rows = titles.map((title) => ({ batch_id: currentBatchId, title, status: 'pending' }));
         const { data: inserted } = await supabase.from('articles').insert(rows).select('id, title');
@@ -385,45 +400,28 @@ export default function ArticleGenerator() {
           }));
         }
       }
-    } catch {
-      // DB tracking is best-effort
-    }
+    } catch { /* DB tracking is best-effort */ }
 
     for (let i = 0; i < titles.length; i++) {
       if (abortRef.current) break;
-      const title = titles[i];
       updateArticle(i, { status: 'generating' });
-
       try {
-        const artPayload: Record<string, unknown> = {
-          title,
-          topic: topic.trim(),
-          minWordCount,
-          maxWordCount,
-          language,
-          anchors: validAnchors,
-        };
-        artPayload.articlePrompt = articlePrompt;
-
-        const artData = await edgeFetch<{ html: string }>('generate-article', artPayload);
+        const artData = await edgeFetch<{ html: string }>('generate-article', {
+          title: titles[i], topic: topic.trim(), minWordCount, maxWordCount,
+          language, anchors: validAnchors, articlePrompt,
+        });
         if (abortRef.current) break;
-
         updateArticle(i, { status: 'uploading', bodyHtml: artData.html });
-        const docData = await edgeFetch<{ googleDocId: string; googleDocUrl: string; shareWarning?: string; pagelessWarning?: string }>(
-          'create-article-doc', { title, bodyHtml: artData.html, topic: topic.trim() },
+        const docData = await edgeFetch<{ googleDocId: string; googleDocUrl: string }>(
+          'create-article-doc', { title: titles[i], bodyHtml: artData.html, topic: topic.trim() },
         );
-        if (docData.pagelessWarning) console.warn('Pageless:', docData.pagelessWarning);
         updateArticle(i, { status: 'done', googleDocId: docData.googleDocId, googleDocUrl: docData.googleDocUrl });
-
         setArticles((prev) => {
           const art = prev[i];
-          if (art.dbId) {
-            supabase.from('articles').update({
-              body_html: artData.html,
-              google_doc_id: docData.googleDocId, google_doc_url: docData.googleDocUrl,
-              status: 'done', updated_at: new Date().toISOString(),
-            }).eq('id', art.dbId).then();
-          }
+          if (art.dbId) supabase.from('articles').update({
+            body_html: artData.html, google_doc_id: docData.googleDocId,
+            google_doc_url: docData.googleDocUrl, status: 'done', updated_at: new Date().toISOString(),
+          }).eq('id', art.dbId).then();
           return prev;
         });
       } catch (err) {
@@ -431,11 +429,9 @@ export default function ArticleGenerator() {
         updateArticle(i, { status: 'failed', error: message });
         setArticles((prev) => {
           const art = prev[i];
-          if (art.dbId) {
-            supabase.from('articles').update({
-              status: 'failed', error_message: message, updated_at: new Date().toISOString(),
-            }).eq('id', art.dbId).then();
-          }
+          if (art.dbId) supabase.from('articles').update({
+            status: 'failed', error_message: message, updated_at: new Date().toISOString(),
+          }).eq('id', art.dbId).then();
           return prev;
         });
       }
@@ -454,17 +450,10 @@ export default function ArticleGenerator() {
     if (!article || article.status !== 'failed') return;
     updateArticle(idx, { status: 'generating', error: undefined });
     try {
-      const artPayload: Record<string, unknown> = {
-        title: article.title,
-        topic: topic.trim(),
-        minWordCount,
-        maxWordCount,
-        language,
-        anchors: validAnchors,
-      };
-      if (isCustomArticlePrompt) artPayload.articlePrompt = articlePrompt;
-
-      const artData = await edgeFetch<{ html: string }>('generate-article', artPayload);
+      const artData = await edgeFetch<{ html: string }>('generate-article', {
+        title: article.title, topic: topic.trim(), minWordCount, maxWordCount,
+        language, anchors: validAnchors, articlePrompt,
+      });
       updateArticle(idx, { status: 'uploading', bodyHtml: artData.html });
       const docData = await edgeFetch<{ googleDocId: string; googleDocUrl: string }>(
         'create-article-doc', { title: article.title, bodyHtml: artData.html, topic: topic.trim() },
@@ -472,18 +461,17 @@ export default function ArticleGenerator() {
       updateArticle(idx, { status: 'done', googleDocId: docData.googleDocId, googleDocUrl: docData.googleDocUrl });
       if (article.dbId) {
         await supabase.from('articles').update({
-          body_html: artData.html,
-          google_doc_id: docData.googleDocId, google_doc_url: docData.googleDocUrl,
-          status: 'done', error_message: null, updated_at: new Date().toISOString(),
+          body_html: artData.html, google_doc_id: docData.googleDocId,
+          google_doc_url: docData.googleDocUrl, status: 'done', error_message: null,
+          updated_at: new Date().toISOString(),
         }).eq('id', article.dbId);
       }
     } catch (err) {
       updateArticle(idx, { status: 'failed', error: err instanceof Error ? err.message : 'Unknown error' });
     }
-  }, [articles, topic, updateArticle, minWordCount, maxWordCount, language, validAnchors, articlePrompt, isCustomArticlePrompt]);
+  }, [articles, topic, updateArticle, minWordCount, maxWordCount, language, validAnchors, articlePrompt]);
 
   const doneArticles = useMemo(() => articles.filter((a) => a.status === 'done' && a.googleDocUrl), [articles]);
-
   const progressCounts = useMemo(() => ({
     pending: articles.filter((a) => a.status === 'pending').length,
     active: articles.filter((a) => a.status === 'generating' || a.status === 'uploading').length,
@@ -492,11 +480,10 @@ export default function ArticleGenerator() {
   }), [articles]);
 
   const resetAll = useCallback(() => {
-    setStep('input'); setTitles([]); setArticles([]); setBatchId(null); setError(null);
     abortRef.current = true;
+    setStep('input'); setTitles([]); setArticles([]); setBatchId(null); setError(null);
   }, []);
 
-  const [expandedBatches, setExpandedBatches] = useState<Set<string>>(new Set());
   const toggleBatch = useCallback((id: string) => {
     setExpandedBatches((prev) => {
       const next = new Set(prev);
@@ -505,136 +492,134 @@ export default function ArticleGenerator() {
     });
   }, []);
 
+  /* ══════════════════════════════════════════════
+     RENDER
+  ══════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/80 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-3.5">
-          <a href="#/" className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-100">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Converter
-          </a>
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-600 text-white">
-              <Wand2 className="h-4 w-4" />
+    <div ref={rootRef} className="min-h-screen bg-[#06060f] text-slate-100">
+
+      {/* ── Animated background orbs ── */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none select-none" aria-hidden>
+        <div className="bg-orb-1 absolute -top-80 -left-80 w-[700px] h-[700px] rounded-full bg-violet-700/20 blur-[160px]" />
+        <div className="bg-orb-2 absolute top-1/2 -right-60 w-[600px] h-[600px] rounded-full bg-indigo-600/12 blur-[140px]" />
+        <div className="bg-orb-3 absolute -bottom-60 left-1/4 w-[650px] h-[650px] rounded-full bg-purple-900/20 blur-[150px]" />
+      </div>
+
+      {/* ── Header ── */}
+      <header className="anim-header sticky top-0 z-20 border-b border-white/[0.06] bg-[#06060f]/85 backdrop-blur-2xl">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-700 shadow-lg shadow-violet-900/60">
+              <Zap className="h-5 w-5 text-white" />
             </div>
-            <span className="text-sm font-semibold tracking-tight">Article Generator</span>
+            <span className="text-base font-bold tracking-tight">
+              Quill<span className="text-violet-400"> AI</span>
+            </span>
           </div>
+          <nav className="flex gap-1 rounded-xl border border-white/[0.06] bg-white/[0.03] p-1">
+            <NavTab active={activeTab === 'generator'} onClick={() => setActiveTab('generator')}
+              icon={<Wand2 className="h-4 w-4" />} label="Generator" />
+            <NavTab active={activeTab === 'history'} onClick={() => setActiveTab('history')}
+              icon={<Clock className="h-4 w-4" />} label="History" />
+          </nav>
         </div>
       </header>
 
-      {/* Tabs */}
-      <div className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-4xl px-6">
-          <button
-            onClick={() => setActiveTab('generator')}
-            className={`relative px-4 py-3 text-sm font-medium transition ${
-              activeTab === 'generator'
-                ? 'text-emerald-700'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <span className="flex items-center gap-1.5"><Wand2 className="h-4 w-4" /> Generator</span>
-            {activeTab === 'generator' && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 rounded-full" />}
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`relative px-4 py-3 text-sm font-medium transition ${
-              activeTab === 'history'
-                ? 'text-emerald-700'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <span className="flex items-center gap-1.5"><Clock className="h-4 w-4" /> History</span>
-            {activeTab === 'history' && <span className="absolute inset-x-0 bottom-0 h-0.5 bg-emerald-600 rounded-full" />}
-          </button>
-        </div>
-      </div>
+      <main className="relative mx-auto max-w-5xl px-6 pb-28 pt-12">
 
-      <main className="mx-auto max-w-4xl px-6 pb-24 pt-10">
-        {/* ========== HISTORY TAB ========== */}
+        {/* ════════════ HISTORY TAB ════════════ */}
         {activeTab === 'history' && (
-          <div>
-            <div>
-              <h1 className="text-2xl font-semibold tracking-tight">Article History</h1>
-              <p className="mt-1 text-sm text-slate-500">All generated batches and their articles.</p>
-            </div>
+          <div className="tab-panel">
+            <h1 className="text-2xl font-bold tracking-tight">Article History</h1>
+            <p className="mt-1 text-sm text-slate-400">All your generated batches and articles.</p>
 
             {historyLoading ? (
-              <div className="mt-12 flex items-center justify-center gap-2 text-sm text-slate-500">
-                <Loader2 className="h-4 w-4 animate-spin" /> Loading history...
+              <div className="mt-16 flex items-center justify-center gap-3 text-slate-400">
+                <Loader2 className="h-5 w-5 animate-spin" /> Loading history...
               </div>
             ) : historyBatches.length === 0 ? (
-              <div className="mt-12 text-center">
-                <Clock className="mx-auto h-10 w-10 text-slate-300" />
-                <p className="mt-3 text-sm text-slate-500">No batches generated yet.</p>
+              <div className="mt-16 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/5">
+                  <Clock className="h-7 w-7 text-slate-500" />
+                </div>
+                <p className="mt-4 text-sm text-slate-400">No batches generated yet.</p>
+                <button onClick={() => setActiveTab('generator')}
+                  className="mt-3 text-sm font-medium text-violet-400 hover:text-violet-300 transition">
+                  Start generating →
+                </button>
               </div>
             ) : (
-              <div className="mt-6 space-y-4">
+              <div className="mt-6 space-y-3">
                 {historyBatches.map((batch) => {
                   const isOpen = expandedBatches.has(batch.id);
                   const doneCount = batch.articles.filter((a) => a.status === 'done').length;
                   return (
-                    <div key={batch.id} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-                      <button
-                        onClick={() => toggleBatch(batch.id)}
-                        className="flex w-full items-center gap-3 px-5 py-4 text-left transition hover:bg-slate-50"
-                      >
-                        <FileText className="h-5 w-5 text-emerald-600 flex-none" />
+                    <div key={batch.id} className={`overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03] transition-all`}>
+                      <button onClick={() => toggleBatch(batch.id)}
+                        className="flex w-full items-center gap-4 px-5 py-4 text-left transition hover:bg-white/[0.03]">
+                        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-violet-500/15 ring-1 ring-violet-500/20">
+                          <FileText className="h-4 w-4 text-violet-400" />
+                        </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-slate-800 truncate">{batch.topic}</p>
+                          <p className="truncate text-sm font-semibold text-slate-100">{batch.topic}</p>
                           <p className="mt-0.5 text-xs text-slate-500">
-                            {new Date(batch.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                            {' -- '}{batch.language}
+                            {new Date(batch.created_at).toLocaleDateString('en-US', {
+                              year: 'numeric', month: 'short', day: 'numeric',
+                              hour: '2-digit', minute: '2-digit',
+                            })}
+                            {' · '}{batch.language}
                           </p>
                         </div>
                         <div className="flex items-center gap-3 flex-none">
-                          <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                            {doneCount}/{batch.requested_count} articles
+                          <span className="rounded-full bg-violet-500/15 px-2.5 py-1 text-xs font-medium text-violet-300 ring-1 ring-violet-500/20">
+                            {doneCount}/{batch.requested_count}
                           </span>
-                          {isOpen ? <ChevronUp className="h-4 w-4 text-slate-400" /> : <ChevronDown className="h-4 w-4 text-slate-400" />}
+                          {isOpen
+                            ? <ChevronUp className="h-4 w-4 text-slate-500" />
+                            : <ChevronDown className="h-4 w-4 text-slate-500" />}
                         </div>
                       </button>
+
                       {isOpen && (
-                        <div className="border-t border-slate-100">
+                        <div className="border-t border-white/[0.06]">
                           {batch.articles.length === 0 ? (
-                            <p className="px-5 py-4 text-sm text-slate-400">No articles in this batch.</p>
+                            <p className="px-5 py-4 text-sm text-slate-500">No articles in this batch.</p>
                           ) : (
                             <>
-                            {batch.articles.some((a) => a.google_doc_url) && (
-                              <div className="flex items-center gap-2 px-5 py-2.5 bg-slate-50 border-b border-slate-100">
-                                <CopyBtn
-                                  text={batch.articles
-                                    .filter((a) => a.google_doc_url)
-                                    .map((a) => a.google_doc_url)
-                                    .join('\n')}
-                                  label="Copy all URLs"
-                                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 transition shadow-sm"
-                                />
-                              </div>
-                            )}
-                            <ul className="divide-y divide-slate-100">
-                              {batch.articles.map((article) => (
-                                <li key={article.id} className="flex items-center gap-3 px-5 py-3 transition hover:bg-slate-50">
-                                  <div className="min-w-0 flex-1">
-                                    <p className="truncate text-sm font-medium text-slate-700">{article.title}</p>
-                                  </div>
-                                  <div className="flex items-center gap-1.5 flex-none">
-                                    {article.google_doc_url ? (
-                                      <>
-                                        <CopyBtn text={article.google_doc_url} label="Copy link" />
-                                        <a href={article.google_doc_url} target="_blank" rel="noreferrer"
-                                          className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 transition">
-                                          <ExternalLink className="h-3.5 w-3.5" /> Open
-                                        </a>
-                                      </>
-                                    ) : (
-                                      <span className="text-xs text-slate-400">
-                                        {article.status === 'failed' ? 'Failed' : 'Pending'}
-                                      </span>
-                                    )}
-                                  </div>
-                                </li>
-                              ))}
-                            </ul>
+                              {batch.articles.some((a) => a.google_doc_url) && (
+                                <div className="flex items-center gap-2 border-b border-white/[0.05] bg-white/[0.02] px-5 py-2.5">
+                                  <CopyBtn
+                                    text={batch.articles.filter((a) => a.google_doc_url).map((a) => a.google_doc_url).join('\n')}
+                                    label="Copy all URLs"
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 transition"
+                                  />
+                                </div>
+                              )}
+                              <ul className="divide-y divide-white/[0.05]">
+                                {batch.articles.map((article) => (
+                                  <li key={article.id}
+                                    className="flex items-center gap-3 px-5 py-3 transition hover:bg-white/[0.02]">
+                                    <div className="min-w-0 flex-1">
+                                      <p className="truncate text-sm font-medium text-slate-300">{article.title}</p>
+                                    </div>
+                                    <div className="flex items-center gap-1.5 flex-none">
+                                      {article.google_doc_url ? (
+                                        <>
+                                          <CopyBtn text={article.google_doc_url} label="Copy" />
+                                          <a href={article.google_doc_url} target="_blank" rel="noreferrer"
+                                            className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-2.5 py-1.5 text-xs font-medium text-violet-300 hover:bg-violet-500/20 transition">
+                                            <ExternalLink className="h-3 w-3" /> Open
+                                          </a>
+                                        </>
+                                      ) : (
+                                        <span className="text-xs text-slate-500">
+                                          {article.status === 'failed' ? 'Failed' : 'Pending'}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
                             </>
                           )}
                         </div>
@@ -647,177 +632,172 @@ export default function ArticleGenerator() {
           </div>
         )}
 
-        {/* ========== GENERATOR TAB ========== */}
+        {/* ════════════ GENERATOR TAB ════════════ */}
         {activeTab === 'generator' && (
           <>
-            <div className="pt-2">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
-                <Sparkles className="h-3 w-3" /> AI-powered bulk articles
+            {/* Hero */}
+            <div className="tab-panel">
+              <div className="anim-badge inline-flex items-center gap-2 rounded-full border border-violet-500/25 bg-violet-500/10 px-3.5 py-1.5 text-xs font-medium text-violet-300">
+                <Sparkles className="h-3 w-3" /> AI-powered bulk article generation
               </div>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-                Generate articles with AI. Get Google Doc links in bulk.
+              <h1 className="anim-title mt-5 text-4xl font-bold tracking-tight text-slate-50 sm:text-5xl leading-tight">
+                Generate articles.<br />
+                <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
+                  Get Google Docs.
+                </span>
               </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">
-                Enter a topic and count, or paste your own titles. We generate full SEO articles using Claude AI
-                and upload each one as a formatted Google Doc.
+              <p className="anim-subtitle mt-4 max-w-2xl text-base text-slate-400 leading-relaxed">
+                Enter a topic, choose your titles, and watch Claude AI write full SEO articles
+                and upload them to Google Docs — all at once.
               </p>
             </div>
 
+            {/* Error banner */}
             {error && (
-              <div className="mt-6 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
-                <AlertCircle className="mt-0.5 h-4 w-4 flex-none" />
+              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-300">
+                <AlertCircle className="mt-0.5 h-4 w-4 flex-none text-rose-400" />
                 <div>{error}</div>
               </div>
             )}
 
-            {/* Step 1 - Input */}
+            {/* ── Step 1: Input ── */}
             {step === 'input' && (
-              <section className="mt-8 space-y-5">
-                <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
-                  <div className="flex items-center gap-2 text-emerald-700">
-                    <Wand2 className="h-5 w-5" />
-                    <h2 className="text-lg font-semibold">Configure your batch</h2>
+              <section className="step-panel mt-8 space-y-4">
+                <div className={`${card} p-8`}>
+                  <div className="flex items-center gap-2.5">
+                    <Wand2 className="h-5 w-5 text-violet-400" />
+                    <h2 className="text-lg font-semibold text-slate-100">Configure your batch</h2>
                   </div>
-                  <p className="mt-2 text-sm text-slate-500">
+                  <p className="mt-1.5 text-sm text-slate-400">
                     Set your article parameters, then choose how to provide titles below.
                   </p>
-                  <div className="mt-6 space-y-4">
+
+                  <div className="mt-7 space-y-5">
                     <div>
-                      <label className="block text-sm font-medium text-slate-700">Topic</label>
+                      <label className={labelCls}>Topic</label>
                       <input type="text" value={topic} onChange={(e) => setTopic(e.target.value)}
                         placeholder='e.g. "Online Slot", "Digital Marketing Tips"'
-                        className="mt-1.5 w-full rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                        className={inputCls}
                       />
                     </div>
-                    <div className="flex flex-wrap gap-4">
+                    <div className="flex flex-wrap gap-5">
                       <div>
-                        <label className="block text-sm font-medium text-slate-700">Min word count</label>
+                        <label className={labelCls}>Min word count</label>
                         <input type="number" min={300} max={10000} step={100} value={minWordCount}
                           onChange={(e) => {
                             const v = Math.max(300, Math.min(10000, +e.target.value || 1000));
                             setMinWordCount(v);
                             if (maxWordCount < v) setMaxWordCount(v);
                           }}
-                          className="mt-1.5 w-32 rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                          className={`${inputCls} w-36`}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700">Max word count</label>
+                        <label className={labelCls}>Max word count</label>
                         <input type="number" min={300} max={10000} step={100} value={maxWordCount}
-                          onChange={(e) => {
-                            const v = Math.max(minWordCount, Math.min(10000, +e.target.value || 1300));
-                            setMaxWordCount(v);
-                          }}
-                          className="mt-1.5 w-32 rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                          onChange={(e) => setMaxWordCount(Math.max(minWordCount, Math.min(10000, +e.target.value || 1300)))}
+                          className={`${inputCls} w-36`}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-slate-700">Language</label>
+                        <label className={labelCls}>Language</label>
                         <LanguageSelect value={language} onChange={setLanguage} />
                       </div>
                     </div>
                   </div>
 
                   {/* Anchor Links */}
-                  <div className="mt-6 border-t border-slate-100 pt-6">
+                  <div className="mt-7 border-t border-white/[0.06] pt-7">
                     <div className="flex items-center gap-2">
-                      <Link2 className="h-4 w-4 text-emerald-600" />
-                      <label className="text-sm font-medium text-slate-700">Anchor Links</label>
+                      <Link2 className="h-4 w-4 text-cyan-400" />
+                      <label className="text-sm font-medium text-slate-200">Anchor Links</label>
                       {validAnchors.length > 0 && (
-                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                        <span className="rounded-full bg-cyan-500/15 px-2 py-0.5 text-xs font-medium text-cyan-300 ring-1 ring-cyan-500/20">
                           {validAnchors.length}
                         </span>
                       )}
                     </div>
-                    <p className="mt-1 text-xs text-slate-400">
-                      Add anchor text and URLs to be naturally embedded in every article.
+                    <p className="mt-1 text-xs text-slate-500">
+                      Anchor text and URLs to embed naturally in every article.
                     </p>
-                    <div className="mt-3 space-y-2.5">
+                    <div className="mt-4 space-y-3">
                       {anchors.map((anchor, idx) => (
                         <div key={idx} className="flex items-start gap-2.5">
                           <div className="flex min-w-0 flex-1 gap-2.5">
                             <div className="flex-1">
-                              {idx === 0 && <label className="mb-1 block text-xs font-medium text-slate-500">Anchor text</label>}
-                              <input
-                                type="text"
-                                value={anchor.text}
+                              {idx === 0 && <label className="mb-1.5 block text-xs font-medium text-slate-500">Anchor text</label>}
+                              <input type="text" value={anchor.text}
                                 onChange={(e) => updateAnchor(idx, 'text', e.target.value)}
                                 placeholder="e.g. best online slots"
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                               />
                             </div>
                             <div className="flex-1">
-                              {idx === 0 && <label className="mb-1 block text-xs font-medium text-slate-500">URL</label>}
-                              <input
-                                type="url"
-                                value={anchor.url}
+                              {idx === 0 && <label className="mb-1.5 block text-xs font-medium text-slate-500">URL</label>}
+                              <input type="url" value={anchor.url}
                                 onChange={(e) => updateAnchor(idx, 'url', e.target.value)}
                                 placeholder="https://example.com"
-                                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                                className="w-full rounded-xl border border-white/10 bg-white/[0.06] px-3 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20"
                               />
                             </div>
                           </div>
                           <button onClick={() => removeAnchor(idx)}
-                            className={`flex-none rounded-md p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 ${idx === 0 ? 'mt-5' : ''}`}
-                            title="Remove anchor">
+                            className={`flex-none rounded-xl p-2.5 text-slate-500 transition hover:bg-rose-500/10 hover:text-rose-400 ${idx === 0 ? 'mt-6' : ''}`}>
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </div>
                       ))}
                       <button onClick={addAnchor}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:border-emerald-400 hover:bg-emerald-50 hover:text-emerald-700">
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-dashed border-white/10 px-3.5 py-2 text-xs font-medium text-slate-400 transition hover:border-cyan-500/40 hover:bg-cyan-500/5 hover:text-cyan-400">
                         <Plus className="h-3.5 w-3.5" /> Add Anchor
                       </button>
                     </div>
                   </div>
 
-                  {/* Title source toggle */}
-                  <div className="mt-6 border-t border-slate-100 pt-6">
-                    <label className="block text-sm font-medium text-slate-700 mb-3">How do you want to provide titles?</label>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => setTitleSource('ai')}
-                        className={`flex-1 rounded-lg border px-4 py-3 text-left text-sm transition ${
+                  {/* Title source */}
+                  <div className="mt-7 border-t border-white/[0.06] pt-7">
+                    <label className="block text-sm font-medium text-slate-200 mb-3">
+                      How do you want to provide titles?
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button onClick={() => setTitleSource('ai')}
+                        className={`rounded-xl border p-4 text-left transition ${
                           titleSource === 'ai'
-                            ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/30'
-                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`font-medium ${titleSource === 'ai' ? 'text-emerald-800' : 'text-slate-700'}`}>
-                          <Sparkles className="mb-1 inline h-4 w-4" /> AI-generated titles
+                            ? 'border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/20'
+                            : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]'
+                        }`}>
+                        <div className={`text-sm font-semibold ${titleSource === 'ai' ? 'text-violet-300' : 'text-slate-300'}`}>
+                          <Sparkles className="mb-1.5 inline h-4 w-4 mr-1" /> AI-generated titles
                         </div>
-                        <div className={`mt-0.5 text-xs ${titleSource === 'ai' ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          We generate title suggestions from your topic
+                        <div className={`mt-1 text-xs ${titleSource === 'ai' ? 'text-violet-400/70' : 'text-slate-500'}`}>
+                          Generate suggestions from your topic
                         </div>
                       </button>
-                      <button
-                        onClick={() => setTitleSource('custom')}
-                        className={`flex-1 rounded-lg border px-4 py-3 text-left text-sm transition ${
+                      <button onClick={() => setTitleSource('custom')}
+                        className={`rounded-xl border p-4 text-left transition ${
                           titleSource === 'custom'
-                            ? 'border-emerald-500 bg-emerald-50 ring-1 ring-emerald-500/30'
-                            : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className={`font-medium ${titleSource === 'custom' ? 'text-emerald-800' : 'text-slate-700'}`}>
-                          <FileText className="mb-1 inline h-4 w-4" /> Your own titles
+                            ? 'border-violet-500/50 bg-violet-500/10 ring-1 ring-violet-500/20'
+                            : 'border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]'
+                        }`}>
+                        <div className={`text-sm font-semibold ${titleSource === 'custom' ? 'text-violet-300' : 'text-slate-300'}`}>
+                          <FileText className="mb-1.5 inline h-4 w-4 mr-1" /> Your own titles
                         </div>
-                        <div className={`mt-0.5 text-xs ${titleSource === 'custom' ? 'text-emerald-600' : 'text-slate-400'}`}>
-                          Paste titles separated by commas or new lines
+                        <div className={`mt-1 text-xs ${titleSource === 'custom' ? 'text-violet-400/70' : 'text-slate-500'}`}>
+                          Paste titles separated by commas or lines
                         </div>
                       </button>
                     </div>
 
                     {titleSource === 'ai' && (
-                      <div className="mt-4 flex items-end gap-3">
+                      <div className="mt-5 flex items-end gap-3">
                         <div>
-                          <label className="block text-sm font-medium text-slate-700">Number of titles</label>
+                          <label className={labelCls}>Number of titles</label>
                           <input type="number" min={1} max={200} value={count}
                             onChange={(e) => setCount(Math.max(1, Math.min(200, +e.target.value || 1)))}
-                            className="mt-1.5 w-32 rounded-lg border border-slate-200 px-4 py-2.5 text-sm text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                            className={`${inputCls} w-32`}
                           />
                         </div>
-                        <button onClick={generateTitles} disabled={loadingTitles || !topic.trim()}
-                          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">
+                        <button onClick={generateTitles} disabled={loadingTitles || !topic.trim()} className={btnPrimary}>
                           {loadingTitles
                             ? <><Loader2 className="h-4 w-4 animate-spin" /> Generating...</>
                             : <><Sparkles className="h-4 w-4" /> Generate Titles</>}
@@ -826,23 +806,20 @@ export default function ArticleGenerator() {
                     )}
 
                     {titleSource === 'custom' && (
-                      <div className="mt-4">
-                        <label className="block text-sm font-medium text-slate-700">Paste your titles</label>
-                        <textarea
-                          value={customTitlesText}
-                          onChange={(e) => setCustomTitlesText(e.target.value)}
+                      <div className="mt-5">
+                        <label className={labelCls}>Paste your titles</label>
+                        <textarea value={customTitlesText} onChange={(e) => setCustomTitlesText(e.target.value)}
                           rows={6}
                           placeholder={"How to Win at Online Slots\nBest Strategies for Digital Marketing\nTop 10 SEO Tips for Beginners"}
-                          className="mt-1.5 w-full rounded-lg border border-slate-200 px-4 py-3 text-sm leading-relaxed text-slate-900 placeholder-slate-400 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                          className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm leading-relaxed text-slate-100 placeholder-slate-500 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 resize-none"
                         />
-                        <div className="mt-2 flex items-center justify-between">
-                          <p className="text-xs text-slate-400">
+                        <div className="mt-3 flex items-center justify-between">
+                          <p className="text-xs text-slate-500">
                             {parsedCustomTitles.length === 0
                               ? 'Separate titles with commas or new lines'
                               : `${parsedCustomTitles.length} title${parsedCustomTitles.length !== 1 ? 's' : ''} detected`}
                           </p>
-                          <button onClick={useCustomTitles} disabled={parsedCustomTitles.length === 0}
-                            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">
+                          <button onClick={useCustomTitles} disabled={parsedCustomTitles.length === 0} className={btnPrimary}>
                             <FileText className="h-4 w-4" /> Use These Titles
                           </button>
                         </div>
@@ -851,80 +828,74 @@ export default function ArticleGenerator() {
                   </div>
                 </div>
 
-                {/* Advanced: Prompt Editor */}
-                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                  <button
-                    onClick={() => setShowAdvanced(!showAdvanced)}
-                    className="flex w-full items-center justify-between px-8 py-5 text-left transition hover:bg-slate-50"
-                  >
-                    <div className="flex items-center gap-2 text-slate-700">
-                      <Settings2 className="h-5 w-5" />
-                      <span className="text-lg font-semibold">Prompt Settings</span>
+                {/* Prompt Settings */}
+                <div className={card}>
+                  <button onClick={() => setShowAdvanced(!showAdvanced)}
+                    className="flex w-full items-center justify-between px-8 py-5 text-left transition rounded-2xl hover:bg-white/[0.02]">
+                    <div className="flex items-center gap-2.5">
+                      <Settings2 className="h-5 w-5 text-slate-500" />
+                      <span className="text-base font-semibold text-slate-200">Prompt Settings</span>
                       {(isCustomTitlePrompt || isCustomArticlePrompt) && (
-                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-200">
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-400 ring-1 ring-amber-500/20">
                           Customized
                         </span>
                       )}
                     </div>
                     {showAdvanced
-                      ? <ChevronUp className="h-5 w-5 text-slate-400" />
-                      : <ChevronDown className="h-5 w-5 text-slate-400" />}
+                      ? <ChevronUp className="h-5 w-5 text-slate-500" />
+                      : <ChevronDown className="h-5 w-5 text-slate-500" />}
                   </button>
 
                   {showAdvanced && (
-                    <div className="border-t border-slate-100 px-8 pb-8 pt-5 space-y-6">
-                      <p className="text-sm text-slate-500">
-                        Customize the AI prompts. Use placeholders like <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-emerald-700">{'{topic}'}</code>, <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-emerald-700">{'{count}'}</code>, <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-emerald-700">{'{title}'}</code>, <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-emerald-700">{'{minWordCount}'}</code>, <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-emerald-700">{'{maxWordCount}'}</code>, <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-emerald-700">{'{language}'}</code>, and <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs font-mono text-emerald-700">{'{anchors}'}</code>.
+                    <div className="border-t border-white/[0.06] px-8 pb-8 pt-6 space-y-6">
+                      <p className="text-sm text-slate-400">
+                        Customize AI prompts. Use{' '}
+                        {['{topic}', '{count}', '{title}', '{minWordCount}', '{maxWordCount}', '{language}', '{anchors}'].map((p) => (
+                          <code key={p} className="mx-0.5 rounded-md bg-white/10 px-1.5 py-0.5 text-xs font-mono text-violet-300">{p}</code>
+                        ))}.
                       </p>
 
                       <div>
                         <div className="flex items-center justify-between">
-                          <label className="block text-sm font-medium text-slate-700">Title Generation Prompt</label>
+                          <label className={labelCls}>Title Generation Prompt</label>
                           {isCustomTitlePrompt && (
                             <button onClick={() => setTitlePrompt(DEFAULT_TITLE_PROMPT)}
-                              className="text-xs font-medium text-emerald-600 hover:text-emerald-700">
+                              className="text-xs font-medium text-violet-400 hover:text-violet-300 transition">
                               Reset to default
                             </button>
                           )}
                         </div>
-                        <textarea
-                          value={titlePrompt}
-                          onChange={(e) => setTitlePrompt(e.target.value)}
-                          rows={4}
-                          className="mt-1.5 w-full rounded-lg border border-slate-200 px-4 py-3 font-mono text-xs leading-relaxed text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                        <textarea value={titlePrompt} onChange={(e) => setTitlePrompt(e.target.value)} rows={4}
+                          className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-xs leading-relaxed text-slate-300 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 resize-none"
                         />
-                        <p className="mt-1 text-xs text-slate-400">
-                          Placeholders: {'{topic}'}, {'{count}'}. Output must be a JSON array of strings.
+                        <p className="mt-1 text-xs text-slate-500">
+                          Placeholders: {'{topic}'}, {'{count}'}. Must return JSON array of strings.
                         </p>
                       </div>
 
                       <div>
                         <div className="flex items-center justify-between">
-                          <label className="block text-sm font-medium text-slate-700">Article Generation Prompt</label>
+                          <label className={labelCls}>Article Generation Prompt</label>
                           {isCustomArticlePrompt && (
                             <button onClick={() => setArticlePrompt(DEFAULT_ARTICLE_PROMPT)}
-                              className="text-xs font-medium text-emerald-600 hover:text-emerald-700">
+                              className="text-xs font-medium text-violet-400 hover:text-violet-300 transition">
                               Reset to default
                             </button>
                           )}
                         </div>
-                        <textarea
-                          value={articlePrompt}
-                          onChange={(e) => setArticlePrompt(e.target.value)}
-                          rows={14}
-                          className="mt-1.5 w-full rounded-lg border border-slate-200 px-4 py-3 font-mono text-xs leading-relaxed text-slate-800 outline-none transition focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                        <textarea value={articlePrompt} onChange={(e) => setArticlePrompt(e.target.value)} rows={14}
+                          className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-xs leading-relaxed text-slate-300 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 resize-none"
                         />
-                        <p className="mt-1 text-xs text-slate-400">
-                          Placeholders: {'{title}'}, {'{minWordCount}'}, {'{maxWordCount}'}, {'{language}'}, {'{anchors}'}. Output must be valid HTML.
+                        <p className="mt-1 text-xs text-slate-500">
+                          Placeholders: {'{title}'}, {'{minWordCount}'}, {'{maxWordCount}'}, {'{language}'}, {'{anchors}'}. Must return HTML.
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between border-t border-slate-100 pt-5">
-                        <p className="text-xs text-slate-400">
-                          Prompts are shared across all users. Changes you save will apply for everyone.
+                      <div className="flex items-center justify-between border-t border-white/[0.06] pt-5">
+                        <p className="text-xs text-slate-500 max-w-xs">
+                          Prompts are shared across all users. Saved changes apply for everyone.
                         </p>
-                        <button onClick={savePromptsToDb} disabled={savingPrompts}
-                          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-slate-500">
+                        <button onClick={savePromptsToDb} disabled={savingPrompts} className={btnPrimary}>
                           {savingPrompts
                             ? <><Loader2 className="h-4 w-4 animate-spin" /> Saving...</>
                             : <><Check className="h-4 w-4" /> Save Prompts</>}
@@ -936,64 +907,66 @@ export default function ArticleGenerator() {
               </section>
             )}
 
-            {/* Step 2 - Titles review */}
+            {/* ── Step 2: Title review ── */}
             {step === 'titles' && (
-              <section className="mt-8 space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-emerald-600" />
-                      <h3 className="text-sm font-semibold">Titles to Generate</h3>
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">{titles.length}</span>
+              <section className="step-panel mt-8 space-y-4">
+                <div className={card}>
+                  <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.06] px-6 py-4">
+                    <div className="flex items-center gap-2.5">
+                      <FileText className="h-4 w-4 text-violet-400" />
+                      <h3 className="text-sm font-semibold text-slate-100">Titles to Generate</h3>
+                      <span className="rounded-full bg-violet-500/15 px-2.5 py-0.5 text-xs font-medium text-violet-300 ring-1 ring-violet-500/20">
+                        {titles.length}
+                      </span>
                     </div>
-                    <button onClick={() => { setStep('input'); setTitles([]); }}
-                      className="inline-flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100">
-                      <ArrowLeft className="h-3.5 w-3.5" /> Back
+                    <button onClick={() => { setStep('input'); setTitles([]); }} className={btnSecondary + ' !py-1.5 !px-3 !text-xs'}>
+                      ← Back
                     </button>
                   </div>
 
-                  {/* Summary of settings */}
-                  <div className="flex flex-wrap gap-2 border-b border-slate-100 px-5 py-3">
-                    <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                      {minWordCount}-{maxWordCount} words
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-md bg-sky-50 px-2 py-1 text-xs font-medium text-sky-700">
-                      <Globe className="h-3 w-3" /> {language}
-                    </span>
+                  {/* Settings summary chips */}
+                  <div className="flex flex-wrap gap-2 border-b border-white/[0.05] bg-white/[0.02] px-6 py-3">
+                    <Chip>{minWordCount}–{maxWordCount} words</Chip>
+                    <Chip icon={<Globe className="h-3 w-3" />}>{language}</Chip>
                     {validAnchors.length > 0 && (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700">
-                        <Link2 className="h-3 w-3" /> {validAnchors.length} anchor{validAnchors.length !== 1 ? 's' : ''}
-                      </span>
+                      <Chip icon={<Link2 className="h-3 w-3" />}>
+                        {validAnchors.length} anchor{validAnchors.length !== 1 ? 's' : ''}
+                      </Chip>
                     )}
                     {isCustomArticlePrompt && (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
-                        <Settings2 className="h-3 w-3" /> Custom prompt
-                      </span>
+                      <Chip icon={<Settings2 className="h-3 w-3" />}>Custom prompt</Chip>
                     )}
                   </div>
 
-                  <p className="px-5 pt-3 text-xs text-slate-500">Edit or remove titles, then click Generate Articles.</p>
-                  <ul className="divide-y divide-slate-100 px-5 pb-2">
+                  <p className="px-6 pt-3 text-xs text-slate-500">Edit or remove titles, then click Generate Articles.</p>
+                  <ul className="divide-y divide-white/[0.05] px-6 pb-2">
                     {titles.map((title, idx) => (
-                      <li key={idx} className="group flex items-center gap-3 py-3">
-                        <span className="flex h-6 w-6 flex-none items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-600">{idx + 1}</span>
+                      <li key={idx} className="title-item group flex items-center gap-3 py-3.5">
+                        <span className="flex h-6 w-6 flex-none items-center justify-center rounded-lg bg-white/[0.06] text-xs font-semibold text-slate-400">
+                          {idx + 1}
+                        </span>
                         {editingIndex === idx ? (
                           <input ref={editInputRef} type="text" value={editValue}
                             onChange={(e) => setEditValue(e.target.value)}
                             onBlur={commitEdit}
-                            onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(); if (e.key === 'Escape') { setEditingIndex(null); setEditValue(''); } }}
-                            className="min-w-0 flex-1 rounded-md border border-emerald-300 px-2.5 py-1 text-sm text-slate-900 outline-none ring-2 ring-emerald-100"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') commitEdit();
+                              if (e.key === 'Escape') { setEditingIndex(null); setEditValue(''); }
+                            }}
+                            className="min-w-0 flex-1 rounded-xl border border-violet-500 bg-violet-500/10 px-3 py-1.5 text-sm text-slate-100 outline-none ring-2 ring-violet-500/20"
                           />
                         ) : (
-                          <span className="min-w-0 flex-1 text-sm text-slate-800">{title}</span>
+                          <span className="min-w-0 flex-1 text-sm text-slate-200">{title}</span>
                         )}
                         <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                           {editingIndex !== idx && (
-                            <button onClick={() => startEditing(idx, title)} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Edit title">
+                            <button onClick={() => startEditing(idx, title)}
+                              className="rounded-lg p-1.5 text-slate-500 hover:bg-white/10 hover:text-slate-300 transition">
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                           )}
-                          <button onClick={() => removeTitle(idx)} className="rounded-md p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600" title="Remove title">
+                          <button onClick={() => removeTitle(idx)}
+                            className="rounded-lg p-1.5 text-slate-500 hover:bg-rose-500/10 hover:text-rose-400 transition">
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                         </div>
@@ -1001,42 +974,45 @@ export default function ArticleGenerator() {
                     ))}
                   </ul>
                 </div>
+
                 {titles.length === 0 && (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-center text-sm text-amber-800">
+                  <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-center text-sm text-amber-300">
                     All titles removed. Go back to generate new ones.
                   </div>
                 )}
-                <button onClick={generateArticles} disabled={titles.length === 0}
-                  className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400">
-                  <Wand2 className="h-4 w-4" /> Generate Articles
+
+                <button onClick={generateArticles} disabled={titles.length === 0} className={btnPrimary}>
+                  <Wand2 className="h-4 w-4" />
+                  Generate {titles.length > 0 ? `${titles.length} ` : ''}Article{titles.length !== 1 ? 's' : ''}
                 </button>
               </section>
             )}
 
-            {/* Step 3 & 4 - Generating / Done */}
+            {/* ── Step 3 & 4: Generating / Done ── */}
             {(step === 'generating' || step === 'done') && (
-              <section className="mt-8 space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <section className="step-panel mt-8 space-y-4">
+                {/* Progress card */}
+                <div className={`${card} p-5`}>
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5">
                       {step === 'generating'
-                        ? <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
-                        : <CheckCircle2 className="h-5 w-5 text-emerald-600" />}
-                      <h3 className="text-sm font-semibold">
+                        ? <Loader2 className="h-5 w-5 animate-spin text-violet-400" />
+                        : <CheckCircle2 className="h-5 w-5 text-emerald-400" />}
+                      <h3 className="text-sm font-semibold text-slate-100">
                         {step === 'generating' ? 'Generating articles...' : 'Batch complete'}
                       </h3>
                     </div>
-                    <div className="flex items-center gap-3 text-xs text-slate-500">
-                      <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-emerald-500" />{progressCounts.done} done</span>
-                      <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-amber-500" />{progressCounts.active} active</span>
-                      <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-slate-300" />{progressCounts.pending} pending</span>
-                      {progressCounts.failed > 0 && (
-                        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-rose-500" />{progressCounts.failed} failed</span>
-                      )}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <StatusPill color="emerald">{progressCounts.done} done</StatusPill>
+                      {progressCounts.active > 0 && <StatusPill color="amber">{progressCounts.active} active</StatusPill>}
+                      {progressCounts.pending > 0 && <StatusPill color="slate">{progressCounts.pending} pending</StatusPill>}
+                      {progressCounts.failed > 0 && <StatusPill color="rose">{progressCounts.failed} failed</StatusPill>}
                     </div>
                   </div>
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-emerald-500 transition-all duration-500 ease-out"
+                  {/* Gradient progress bar */}
+                  <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-white/10">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-500 transition-all duration-700 ease-out"
                       style={{ width: `${articles.length ? ((progressCounts.done + progressCounts.failed) / articles.length) * 100 : 0}%` }}
                     />
                   </div>
@@ -1045,8 +1021,9 @@ export default function ArticleGenerator() {
                   </p>
                 </div>
 
-                <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                  <ul className="divide-y divide-slate-100">
+                {/* Article rows */}
+                <div className={`${card} overflow-hidden`}>
+                  <ul className="divide-y divide-white/[0.05]">
                     {articles.map((article, idx) => (
                       <ArticleRow key={idx} index={idx} article={article}
                         onRetry={() => retryArticle(idx)} isProcessing={step === 'generating'} />
@@ -1055,8 +1032,7 @@ export default function ArticleGenerator() {
                 </div>
 
                 {step === 'done' && (
-                  <button onClick={resetAll}
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50">
+                  <button onClick={resetAll} className={btnSecondary}>
                     <RotateCw className="h-4 w-4" /> New Batch
                   </button>
                 )}
@@ -1073,7 +1049,41 @@ export default function ArticleGenerator() {
   );
 }
 
-/* ---- Sub-components ---- */
+/* ════════════ Sub-components ════════════ */
+
+function NavTab({ active, onClick, icon, label }: {
+  active: boolean; onClick: () => void; icon: React.ReactNode; label: string;
+}) {
+  return (
+    <button onClick={onClick}
+      className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all ${
+        active
+          ? 'bg-violet-600 text-white shadow-md shadow-violet-900/50'
+          : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
+      }`}>
+      {icon} {label}
+    </button>
+  );
+}
+
+function Chip({ children, icon }: { children: React.ReactNode; icon?: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-lg bg-white/[0.06] px-2.5 py-1 text-xs font-medium text-slate-400">
+      {icon}{children}
+    </span>
+  );
+}
+
+function StatusPill({ color, children }: { color: 'emerald' | 'amber' | 'slate' | 'rose'; children: React.ReactNode }) {
+  const text = { emerald: 'text-emerald-400', amber: 'text-amber-400', slate: 'text-slate-400', rose: 'text-rose-400' };
+  const dot = { emerald: 'bg-emerald-500', amber: 'bg-amber-500', slate: 'bg-slate-500', rose: 'bg-rose-500' };
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs ${text[color]}`}>
+      <span className={`h-1.5 w-1.5 rounded-full ${dot[color]}`} />
+      {children}
+    </span>
+  );
+}
 
 function LanguageSelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [open, setOpen] = useState(false);
@@ -1088,17 +1098,12 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (v: stri
   }, [search]);
 
   useEffect(() => {
-    if (open) {
-      setSearch('');
-      setTimeout(() => searchRef.current?.focus(), 0);
-    }
+    if (open) { setSearch(''); setTimeout(() => searchRef.current?.focus(), 0); }
   }, [open]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
     }
     if (open) document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
@@ -1106,11 +1111,8 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (v: stri
 
   return (
     <div ref={containerRef} className="relative mt-1.5">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="flex w-52 items-center justify-between rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 outline-none transition hover:border-slate-300 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-      >
+      <button type="button" onClick={() => setOpen(!open)}
+        className="flex w-52 items-center justify-between rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm text-slate-100 outline-none transition hover:border-white/20">
         <span className="flex items-center gap-2">
           <Globe className="h-4 w-4 text-slate-400" />
           {value}
@@ -1119,35 +1121,28 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (v: stri
       </button>
 
       {open && (
-        <div className="absolute left-0 z-30 mt-1.5 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
-          <div className="border-b border-slate-100 p-2">
-            <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2">
+        <div className="absolute left-0 z-30 mt-2 w-64 overflow-hidden rounded-2xl border border-white/10 bg-[#0d0d1a] shadow-2xl shadow-black/60">
+          <div className="border-b border-white/[0.06] p-2.5">
+            <div className="flex items-center gap-2 rounded-xl bg-white/[0.06] px-3 py-2">
               <Search className="h-4 w-4 text-slate-400" />
-              <input
-                ref={searchRef}
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+              <input ref={searchRef} type="text" value={search} onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search languages..."
-                className="w-full bg-transparent text-sm text-slate-900 placeholder-slate-400 outline-none"
+                className="w-full bg-transparent text-sm text-slate-100 placeholder-slate-500 outline-none"
               />
             </div>
           </div>
           <ul className="max-h-60 overflow-y-auto py-1">
             {filtered.length === 0 && (
-              <li className="px-4 py-3 text-center text-sm text-slate-400">No languages found</li>
+              <li className="px-4 py-3 text-center text-sm text-slate-500">No languages found</li>
             )}
             {filtered.map((lang) => (
               <li key={lang}>
-                <button
-                  type="button"
-                  onClick={() => { onChange(lang); setOpen(false); }}
-                  className={`flex w-full items-center justify-between px-4 py-2 text-left text-sm transition hover:bg-emerald-50 ${
-                    value === lang ? 'bg-emerald-50 font-medium text-emerald-700' : 'text-slate-700'
-                  }`}
-                >
+                <button type="button" onClick={() => { onChange(lang); setOpen(false); }}
+                  className={`flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition hover:bg-violet-500/10 ${
+                    value === lang ? 'bg-violet-500/15 font-medium text-violet-300' : 'text-slate-300'
+                  }`}>
                   {lang}
-                  {value === lang && <Check className="h-4 w-4 text-emerald-600" />}
+                  {value === lang && <Check className="h-4 w-4 text-violet-400" />}
                 </button>
               </li>
             ))}
@@ -1159,20 +1154,20 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (v: stri
 }
 
 const STATUS_CFG: Record<ArticleStatus, { label: string; color: string }> = {
-  pending: { label: 'Pending', color: 'text-slate-500' },
-  generating: { label: 'Generating content...', color: 'text-amber-600' },
-  uploading: { label: 'Uploading to Google Docs...', color: 'text-teal-600' },
-  done: { label: 'Done', color: 'text-emerald-700' },
-  failed: { label: 'Failed', color: 'text-rose-700' },
+  pending:    { label: 'Pending',                        color: 'text-slate-500' },
+  generating: { label: 'Generating content...',          color: 'text-amber-400' },
+  uploading:  { label: 'Uploading to Google Docs...',    color: 'text-cyan-400' },
+  done:       { label: 'Done',                           color: 'text-emerald-400' },
+  failed:     { label: 'Failed',                         color: 'text-rose-400' },
 };
 
 function StatusIcon({ status }: { status: ArticleStatus }) {
   switch (status) {
-    case 'done': return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
-    case 'failed': return <AlertCircle className="h-4 w-4 text-rose-600" />;
-    case 'generating': return <Loader2 className="h-4 w-4 animate-spin text-amber-500" />;
-    case 'uploading': return <Loader2 className="h-4 w-4 animate-spin text-teal-500" />;
-    default: return <FileText className="h-4 w-4 text-slate-400" />;
+    case 'done':       return <CheckCircle2 className="h-4 w-4 text-emerald-400" />;
+    case 'failed':     return <AlertCircle  className="h-4 w-4 text-rose-400" />;
+    case 'generating': return <Loader2      className="h-4 w-4 animate-spin text-amber-400" />;
+    case 'uploading':  return <Loader2      className="h-4 w-4 animate-spin text-cyan-400" />;
+    default:           return <FileText     className="h-4 w-4 text-slate-500" />;
   }
 }
 
@@ -1181,11 +1176,13 @@ function ArticleRow({ index, article, onRetry, isProcessing }: {
 }) {
   const cfg = STATUS_CFG[article.status];
   return (
-    <li className="flex items-center gap-3 px-5 py-3.5">
-      <span className="flex h-7 w-7 flex-none items-center justify-center rounded-md bg-slate-100 text-xs font-semibold text-slate-700">{index + 1}</span>
+    <li className="article-row flex items-center gap-3 px-5 py-4 transition hover:bg-white/[0.02]">
+      <span className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-white/[0.06] text-xs font-semibold text-slate-400">
+        {index + 1}
+      </span>
       <StatusIcon status={article.status} />
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium text-slate-800">{article.title}</div>
+        <div className="truncate text-sm font-medium text-slate-200">{article.title}</div>
         <div className={`mt-0.5 text-xs ${cfg.color}`}>
           {article.status === 'failed' && article.error ? article.error : cfg.label}
         </div>
@@ -1193,16 +1190,16 @@ function ArticleRow({ index, article, onRetry, isProcessing }: {
       <div className="flex items-center gap-1.5">
         {article.status === 'done' && article.googleDocUrl && (
           <>
-            <CopyBtn text={article.googleDocUrl} label="Copy link" />
+            <CopyBtn text={article.googleDocUrl} label="Copy" />
             <a href={article.googleDocUrl} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100">
+              className="inline-flex items-center gap-1 rounded-lg border border-violet-500/30 bg-violet-500/10 px-2.5 py-1.5 text-xs font-medium text-violet-300 hover:bg-violet-500/20 transition">
               <ExternalLink className="h-3.5 w-3.5" /> Open Doc
             </a>
           </>
         )}
         {article.status === 'failed' && !isProcessing && (
           <button onClick={onRetry}
-            className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+            className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 transition">
             <RotateCw className="h-3.5 w-3.5" /> Retry
           </button>
         )}
@@ -1213,72 +1210,84 @@ function ArticleRow({ index, article, onRetry, isProcessing }: {
 
 function CopyBtn({ text, label, className }: { text: string; label: string; className?: string }) {
   const [copied, setCopied] = useState(false);
-  const copy = async () => { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); };
+  const copy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
   return (
     <button onClick={copy} title={label}
-      className={className || "inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50"}>
-      <Copy className="h-3.5 w-3.5" /> {copied ? 'Copied' : label}
+      className={className || 'inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:bg-white/10 transition'}>
+      {copied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+      {copied ? 'Copied!' : label}
     </button>
   );
 }
 
 type CopyFormat = 'urls' | 'name-url' | 'numbered';
 const FORMAT_OPTIONS: { key: CopyFormat; label: string; hint: string }[] = [
-  { key: 'urls', label: 'URLs only', hint: 'One link per line' },
-  { key: 'name-url', label: 'Name + URL', hint: 'Two columns in Sheets' },
-  { key: 'numbered', label: 'Numbered list', hint: '1. Name \u2014 URL' },
+  { key: 'urls',     label: 'URLs only',    hint: 'One link per line' },
+  { key: 'name-url', label: 'Name + URL',   hint: 'Two columns in Sheets' },
+  { key: 'numbered', label: 'Numbered list', hint: '1. Name — URL' },
 ];
-const FORMAT_LABEL: Record<CopyFormat, string> = { urls: 'URLs', 'name-url': 'name + URL', numbered: 'numbered' };
 
 function BulkLinksCard({ pairs }: { pairs: { name: string; url: string }[] }) {
   const [format, setFormat] = useState<CopyFormat>('urls');
   const [copied, setCopied] = useState(false);
 
   const text = useMemo(() => {
-    if (format === 'urls') return pairs.map((p) => p.url).join('\n');
+    if (format === 'urls')     return pairs.map((p) => p.url).join('\n');
     if (format === 'name-url') return pairs.map((p) => `${p.name}\t${p.url}`).join('\n');
-    return pairs.map((p, i) => `${i + 1}. ${p.name} \u2014 ${p.url}`).join('\n');
+    return pairs.map((p, i) => `${i + 1}. ${p.name} — ${p.url}`).join('\n');
   }, [pairs, format]);
 
   const copy = async () => { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); };
 
   return (
-    <section className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-5">
+    <section className="rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Link2 className="h-5 w-5 text-emerald-700" />
-          <h3 className="text-sm font-semibold text-emerald-900">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-violet-500/20">
+            <Link2 className="h-4 w-4 text-violet-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-slate-100">
             {pairs.length} {pairs.length === 1 ? 'link' : 'links'} ready to copy
           </h3>
         </div>
         <button onClick={copy}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-600">
-          <Copy className="h-3.5 w-3.5" /> {copied ? 'Copied!' : `Copy all (${FORMAT_LABEL[format]})`}
+          className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-violet-600 to-purple-700 px-3.5 py-2 text-xs font-semibold text-white shadow shadow-violet-900/40 hover:from-violet-500 hover:to-purple-600 transition">
+          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? 'Copied!' : 'Copy all'}
         </button>
       </div>
+
       <div className="mt-4 flex flex-wrap gap-2">
         {FORMAT_OPTIONS.map((o) => (
           <button key={o.key} onClick={() => setFormat(o.key)}
-            className={`rounded-lg border px-3 py-2 text-left text-xs transition ${
+            className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
               format === o.key
-                ? 'border-emerald-500 bg-white shadow-sm ring-1 ring-emerald-500/30'
-                : 'border-emerald-200 bg-white/60 hover:bg-white'
+                ? 'border-violet-500/40 bg-white/10 ring-1 ring-violet-500/20'
+                : 'border-white/10 bg-white/[0.04] hover:bg-white/[0.07]'
             }`}>
-            <div className="font-semibold text-emerald-900">{o.label}</div>
-            <div className="text-emerald-800/60">{o.hint}</div>
+            <div className={`font-semibold ${format === o.key ? 'text-violet-300' : 'text-slate-300'}`}>{o.label}</div>
+            <div className="text-slate-500">{o.hint}</div>
           </button>
         ))}
       </div>
-      <pre className="mt-4 max-h-80 overflow-auto whitespace-pre rounded-lg border border-emerald-200 bg-white p-3 text-xs leading-relaxed text-slate-700">
+
+      <pre className="mt-4 max-h-72 overflow-auto whitespace-pre rounded-xl border border-white/[0.07] bg-white/[0.04] p-4 text-xs leading-relaxed text-slate-300">
         {text || '(empty)'}
       </pre>
-      <ol className="mt-4 space-y-1.5">
+
+      <ol className="mt-4 space-y-2">
         {pairs.map((p, i) => (
-          <li key={p.url} className="flex items-center gap-3 rounded-md bg-white px-3 py-1.5 shadow-sm">
-            <span className="flex h-5 w-5 flex-none items-center justify-center rounded bg-emerald-100 text-[10px] font-semibold text-emerald-700">{i + 1}</span>
-            <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-700">{p.name}</span>
+          <li key={p.url} className="flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.04] px-3.5 py-2.5">
+            <span className="flex h-5 w-5 flex-none items-center justify-center rounded-lg bg-violet-500/20 text-[10px] font-bold text-violet-300">
+              {i + 1}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs font-medium text-slate-300">{p.name}</span>
             <a href={p.url} target="_blank" rel="noreferrer"
-              className="inline-flex items-center gap-1 truncate text-[11px] font-medium text-emerald-700 hover:underline">
+              className="inline-flex items-center gap-1 text-[11px] font-medium text-violet-400 hover:text-violet-300 transition">
               <ExternalLink className="h-3 w-3" /> Open
             </a>
           </li>
