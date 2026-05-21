@@ -487,46 +487,56 @@ export default function ArticleGenerator() {
       }
     } catch { /* DB best-effort */ }
 
-    for (let i = 0; i < titles.length; i++) {
-      if (abortRef.current) break;
-      const artStart = Date.now();
-      updateArticle(i, { status: 'generating', startTime: artStart });
-      try {
-        const artData = await edgeFetch<{ html: string }>('generate-article', {
-          title: titles[i], topic: topic.trim(), minWordCount, maxWordCount,
-          language, anchors: validAnchors, articlePrompt,
-        });
-        if (abortRef.current) break;
-        const wc = countWords(artData.html);
-        updateArticle(i, { status: 'uploading', bodyHtml: artData.html, wordCount: wc });
-        const docData = await edgeFetch<{ googleDocId: string; googleDocUrl: string }>(
-          'create-article-doc', { title: titles[i], bodyHtml: artData.html, topic: topic.trim() },
-        );
-        const artEnd = Date.now();
-        const artDuration = artEnd - artStart;
-        updateArticle(i, { status: 'done', googleDocId: docData.googleDocId, googleDocUrl: docData.googleDocUrl, endTime: artEnd });
-        setArticles((prev) => {
-          const art = prev[i];
-          if (art.dbId) supabase.from('articles').update({
-            body_html: artData.html, google_doc_id: docData.googleDocId,
-            google_doc_url: docData.googleDocUrl, status: 'done',
-            word_count: wc, duration_ms: artDuration,
-            updated_at: new Date().toISOString(),
-          }).eq('id', art.dbId).then();
-          return prev;
-        });
-      } catch (err) {
-        const message = err instanceof Error ? err.message : 'Unknown error';
-        updateArticle(i, { status: 'failed', error: message, endTime: Date.now() });
-        setArticles((prev) => {
-          const art = prev[i];
-          if (art.dbId) supabase.from('articles').update({
-            status: 'failed', error_message: message, updated_at: new Date().toISOString(),
-          }).eq('id', art.dbId).then();
-          return prev;
-        });
+    /* Parallel workers — each grabs the next unstarted article from a shared index */
+    let queueIdx = 0;
+    const worker = async () => {
+      while (true) {
+        if (abortRef.current) return;
+        const i = queueIdx++;
+        if (i >= titles.length) return;
+
+        const artStart = Date.now();
+        updateArticle(i, { status: 'generating', startTime: artStart });
+        try {
+          const artData = await edgeFetch<{ html: string }>('generate-article', {
+            title: titles[i], topic: topic.trim(), minWordCount, maxWordCount,
+            language, anchors: validAnchors, articlePrompt,
+          });
+          if (abortRef.current) return;
+          const wc = countWords(artData.html);
+          updateArticle(i, { status: 'uploading', bodyHtml: artData.html, wordCount: wc });
+          const docData = await edgeFetch<{ googleDocId: string; googleDocUrl: string }>(
+            'create-article-doc', { title: titles[i], bodyHtml: artData.html, topic: topic.trim() },
+          );
+          const artEnd = Date.now();
+          const artDuration = artEnd - artStart;
+          updateArticle(i, { status: 'done', googleDocId: docData.googleDocId, googleDocUrl: docData.googleDocUrl, endTime: artEnd });
+          setArticles((prev) => {
+            const art = prev[i];
+            if (art.dbId) supabase.from('articles').update({
+              body_html: artData.html, google_doc_id: docData.googleDocId,
+              google_doc_url: docData.googleDocUrl, status: 'done',
+              word_count: wc, duration_ms: artDuration,
+              updated_at: new Date().toISOString(),
+            }).eq('id', art.dbId).then();
+            return prev;
+          });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Unknown error';
+          updateArticle(i, { status: 'failed', error: message, endTime: Date.now() });
+          setArticles((prev) => {
+            const art = prev[i];
+            if (art.dbId) supabase.from('articles').update({
+              status: 'failed', error_message: message, updated_at: new Date().toISOString(),
+            }).eq('id', art.dbId).then();
+            return prev;
+          });
+        }
       }
-    }
+    };
+
+    /* Run up to 3 articles in parallel */
+    await Promise.all(Array.from({ length: Math.min(3, titles.length) }, () => worker()));
 
     const batchEnd = Date.now();
     setBatchEndTime(batchEnd);
