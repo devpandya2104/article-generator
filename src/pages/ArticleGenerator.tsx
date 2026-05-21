@@ -580,6 +580,9 @@ export default function ArticleGenerator() {
   return (
     <div ref={rootRef} className="min-h-screen bg-[#04040a] text-slate-100 overflow-x-hidden">
 
+      {/* ── Custom cursor ── */}
+      <CustomCursor />
+
       {/* ── Confetti container ── */}
       <div id="confetti-root" className="fixed inset-0 pointer-events-none overflow-hidden z-50" aria-hidden />
 
@@ -1486,5 +1489,100 @@ function BulkLinksCard({ pairs }: { pairs: { name: string; url: string }[] }) {
         </ol>
       </div>
     </section>
+  );
+}
+
+/* ── Custom Cursor ──────────────────────────────────────────────── */
+function CustomCursor() {
+  const dotRef  = useRef<HTMLDivElement>(null);
+  const ringRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const dot  = dotRef.current;
+    const ring = ringRef.current;
+    if (!dot || !ring) return;
+    if (!window.matchMedia('(pointer: fine)').matches) return;
+
+    gsap.set([dot, ring], { xPercent: -50, yPercent: -50, x: -200, y: -200 });
+
+    const styleEl = document.createElement('style');
+    styleEl.textContent = '*, *::before, *::after { cursor: none !important; }';
+    document.head.appendChild(styleEl);
+
+    let mx = -200, my = -200, rx = -200, ry = -200;
+    let cursorState = 'default';
+
+    const tick = () => {
+      rx += (mx - rx) * 0.1;
+      ry += (my - ry) * 0.1;
+      gsap.set(ring, { x: rx, y: ry });
+    };
+    gsap.ticker.add(tick);
+
+    const onMove = (e: MouseEvent) => {
+      mx = e.clientX;
+      my = e.clientY;
+      gsap.set(dot, { x: mx, y: my });
+    };
+
+    const setState = (state: string) => {
+      if (state === cursorState) return;
+      cursorState = state;
+      if (state === 'button') {
+        gsap.to(ring, { scale: 1.65, backgroundColor: 'rgba(139,92,246,0.1)', borderColor: 'rgba(167,139,250,0.95)', boxShadow: '0 0 24px rgba(139,92,246,0.5)', duration: 0.35, ease: 'back.out(1.7)' });
+        gsap.to(dot, { scale: 0, duration: 0.2 });
+      } else if (state === 'text') {
+        gsap.to(ring, { scaleX: 0.1, scaleY: 1.6, borderColor: 'rgba(167,139,250,0.9)', backgroundColor: 'transparent', boxShadow: 'none', duration: 0.3, ease: 'power3.out' });
+        gsap.to(dot, { scale: 0, duration: 0.2 });
+      } else {
+        gsap.to(ring, { scale: 1, scaleX: 1, scaleY: 1, backgroundColor: 'transparent', borderColor: 'rgba(139,92,246,0.55)', boxShadow: '0 0 12px rgba(139,92,246,0.15)', duration: 0.65, ease: 'elastic.out(1, 0.45)' });
+        gsap.to(dot, { scale: 1, duration: 0.4, ease: 'elastic.out(1, 0.5)' });
+      }
+    };
+
+    const onOver = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest('input, textarea, select')) setState('text');
+      else if (t.closest('a, button, [role="button"], label')) setState('button');
+      else setState('default');
+    };
+
+    const onDown = () => {
+      gsap.to(ring, { scale: cursorState === 'button' ? 1.2 : 0.75, duration: 0.1, ease: 'power3.out' });
+      if (cursorState === 'default') gsap.to(dot, { scale: 3, opacity: 0.5, duration: 0.1 });
+    };
+    const onUp = () => {
+      gsap.to(ring, { scale: cursorState === 'button' ? 1.65 : 1, duration: 0.6, ease: 'elastic.out(1, 0.4)' });
+      if (cursorState === 'default') gsap.to(dot, { scale: 1, opacity: 1, duration: 0.4, ease: 'elastic.out(1, 0.5)' });
+    };
+    const onLeave = () => gsap.to([dot, ring], { opacity: 0, duration: 0.4 });
+    const onEnter = () => gsap.to([dot, ring], { opacity: 1, duration: 0.3 });
+
+    document.addEventListener('mousemove',  onMove);
+    document.addEventListener('mouseover',  onOver);
+    document.addEventListener('mousedown',  onDown);
+    document.addEventListener('mouseup',    onUp);
+    document.addEventListener('mouseleave', onLeave);
+    document.addEventListener('mouseenter', onEnter);
+
+    return () => {
+      styleEl.remove();
+      gsap.ticker.remove(tick);
+      document.removeEventListener('mousemove',  onMove);
+      document.removeEventListener('mouseover',  onOver);
+      document.removeEventListener('mousedown',  onDown);
+      document.removeEventListener('mouseup',    onUp);
+      document.removeEventListener('mouseleave', onLeave);
+      document.removeEventListener('mouseenter', onEnter);
+    };
+  }, []);
+
+  return (
+    <>
+      <div ref={ringRef} className="fixed top-0 left-0 pointer-events-none z-[9999]"
+        style={{ width: 40, height: 40, borderRadius: '50%', border: '1.5px solid rgba(139,92,246,0.55)', boxShadow: '0 0 12px rgba(139,92,246,0.15)', willChange: 'transform' }} />
+      <div ref={dotRef} className="fixed top-0 left-0 pointer-events-none z-[9999]"
+        style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff', boxShadow: '0 0 8px rgba(255,255,255,0.9), 0 0 16px rgba(139,92,246,0.7)', willChange: 'transform', mixBlendMode: 'difference' }} />
+    </>
   );
 }
