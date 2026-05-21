@@ -39,6 +39,8 @@ interface HistoryBatchArticle {
   title: string;
   google_doc_url: string | null;
   status: string;
+  word_count?: number;
+  duration_ms?: number;
 }
 
 interface HistoryBatch {
@@ -48,6 +50,8 @@ interface HistoryBatch {
   requested_count: number;
   language: string;
   articles: HistoryBatchArticle[];
+  batch_started_at?: string | null;
+  batch_completed_at?: string | null;
 }
 
 const LANGUAGES = [
@@ -376,21 +380,26 @@ export default function ArticleGenerator() {
     setHistoryLoading(true);
     try {
       const { data: batches } = await supabase
-        .from('article_batches').select('id, topic, created_at, requested_count, language')
+        .from('article_batches').select('id, topic, created_at, requested_count, language, batch_started_at, batch_completed_at')
         .order('created_at', { ascending: false });
       if (!batches || batches.length === 0) { setHistoryBatches([]); return; }
       const batchIds = batches.map((b) => b.id);
       const { data: arts } = await supabase
-        .from('articles').select('id, title, google_doc_url, status, batch_id')
+        .from('articles').select('id, title, google_doc_url, status, batch_id, word_count, duration_ms')
         .in('batch_id', batchIds);
       const artsByBatch: Record<string, HistoryBatchArticle[]> = {};
       for (const a of (arts || [])) {
-        (artsByBatch[a.batch_id] ||= []).push({ id: a.id, title: a.title, google_doc_url: a.google_doc_url, status: a.status });
+        (artsByBatch[a.batch_id] ||= []).push({
+          id: a.id, title: a.title, google_doc_url: a.google_doc_url, status: a.status,
+          word_count: a.word_count, duration_ms: a.duration_ms,
+        });
       }
       setHistoryBatches(batches.map((b) => ({
         id: b.id, topic: b.topic, created_at: b.created_at,
         requested_count: b.requested_count, language: b.language,
         articles: artsByBatch[b.id] || [],
+        batch_started_at: b.batch_started_at,
+        batch_completed_at: b.batch_completed_at,
       })));
     } catch { /* best-effort */ } finally { setHistoryLoading(false); }
   }, []);
@@ -462,6 +471,7 @@ export default function ArticleGenerator() {
           anchors: validAnchors,
           title_prompt: isCustomTitlePrompt ? titlePrompt : '',
           article_prompt: isCustomArticlePrompt ? articlePrompt : '',
+          batch_started_at: new Date(now).toISOString(),
         }).select('id').maybeSingle();
         if (batch?.id) { currentBatchId = batch.id; setBatchId(batch.id); }
       }
@@ -493,12 +503,15 @@ export default function ArticleGenerator() {
           'create-article-doc', { title: titles[i], bodyHtml: artData.html, topic: topic.trim() },
         );
         const artEnd = Date.now();
+        const artDuration = artEnd - artStart;
         updateArticle(i, { status: 'done', googleDocId: docData.googleDocId, googleDocUrl: docData.googleDocUrl, endTime: artEnd });
         setArticles((prev) => {
           const art = prev[i];
           if (art.dbId) supabase.from('articles').update({
             body_html: artData.html, google_doc_id: docData.googleDocId,
-            google_doc_url: docData.googleDocUrl, status: 'done', updated_at: new Date().toISOString(),
+            google_doc_url: docData.googleDocUrl, status: 'done',
+            word_count: wc, duration_ms: artDuration,
+            updated_at: new Date().toISOString(),
           }).eq('id', art.dbId).then();
           return prev;
         });
@@ -519,7 +532,7 @@ export default function ArticleGenerator() {
     setBatchEndTime(batchEnd);
     if (currentBatchId) {
       await supabase.from('article_batches')
-        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .update({ status: 'completed', batch_completed_at: new Date(batchEnd).toISOString(), updated_at: new Date().toISOString() })
         .eq('id', currentBatchId);
     }
     setStep('done');
@@ -540,11 +553,14 @@ export default function ArticleGenerator() {
       const docData = await edgeFetch<{ googleDocId: string; googleDocUrl: string }>(
         'create-article-doc', { title: article.title, bodyHtml: artData.html, topic: topic.trim() },
       );
-      updateArticle(idx, { status: 'done', googleDocId: docData.googleDocId, googleDocUrl: docData.googleDocUrl, endTime: Date.now() });
+      const retryEnd = Date.now();
+      const retryDuration = retryEnd - artStart;
+      updateArticle(idx, { status: 'done', googleDocId: docData.googleDocId, googleDocUrl: docData.googleDocUrl, endTime: retryEnd });
       if (article.dbId) {
         await supabase.from('articles').update({
           body_html: artData.html, google_doc_id: docData.googleDocId,
           google_doc_url: docData.googleDocUrl, status: 'done', error_message: null,
+          word_count: wc, duration_ms: retryDuration,
           updated_at: new Date().toISOString(),
         }).eq('id', article.dbId);
       }
@@ -640,6 +656,9 @@ export default function ArticleGenerator() {
                 {historyBatches.map((batch) => {
                   const isOpen = expandedBatches.has(batch.id);
                   const doneCount = batch.articles.filter((a) => a.status === 'done').length;
+                  const batchDurationMs = batch.batch_started_at && batch.batch_completed_at
+                    ? new Date(batch.batch_completed_at).getTime() - new Date(batch.batch_started_at).getTime()
+                    : null;
                   return (
                     <div key={batch.id} className="history-item overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.03] transition-all">
                       <button onClick={() => toggleBatch(batch.id)}
@@ -654,6 +673,9 @@ export default function ArticleGenerator() {
                               year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
                             })}
                             {' · '}{batch.language}
+                            {batchDurationMs !== null && (
+                              <> · <Timer className="inline h-3 w-3 mx-0.5 -mt-px" />{formatDuration(batchDurationMs)} total</>
+                            )}
                           </p>
                         </div>
                         <div className="flex items-center gap-3 flex-none">
@@ -680,9 +702,23 @@ export default function ArticleGenerator() {
                               )}
                               <ul className="divide-y divide-white/[0.05]">
                                 {batch.articles.map((article) => (
-                                  <li key={article.id} className="flex items-center gap-3 px-5 py-3 transition hover:bg-white/[0.02]">
+                                  <li key={article.id} className="flex items-center gap-3 px-5 py-3.5 transition hover:bg-white/[0.02]">
                                     <div className="min-w-0 flex-1">
                                       <p className="truncate text-sm font-medium text-slate-300">{article.title}</p>
+                                      {(article.word_count || article.duration_ms) ? (
+                                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                          {!!article.word_count && article.word_count > 0 && (
+                                            <span className="inline-flex items-center rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[11px] font-medium text-slate-400">
+                                              {article.word_count.toLocaleString()} words
+                                            </span>
+                                          )}
+                                          {!!article.duration_ms && article.duration_ms > 0 && (
+                                            <span className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[11px] font-medium text-slate-400">
+                                              <Timer className="h-3 w-3" /> {formatDuration(article.duration_ms)}
+                                            </span>
+                                          )}
+                                        </div>
+                                      ) : null}
                                     </div>
                                     <div className="flex items-center gap-1.5 flex-none">
                                       {article.google_doc_url ? (
