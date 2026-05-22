@@ -281,10 +281,18 @@ function ProcRowCard({ row }: { row: ProcRow }) {
 }
 
 /* ── SheetStatusTab ─────────────────────────────────────────────── */
-function SheetStatusTab({ rows, loading, onRefresh }: { rows: SheetRow[]; loading: boolean; onRefresh: () => void }) {
+function SheetStatusTab({ rows, procRows, loading, onRefresh }: { rows: SheetRow[]; procRows: ProcRow[]; loading: boolean; onRefresh: () => void }) {
+  const activeIds = new Set(
+    procRows
+      .filter(r => ['title','article','doc','sheet'].includes(r.procStatus))
+      .map(r => r._rowIndex)
+  );
   const completed  = rows.filter(r => r['Status']?.toLowerCase().includes('complet'));
-  const processing = rows.filter(r => r['Status']?.toLowerCase().includes('process'));
-  const pending    = rows.filter(r => !r['Status'] || r['Status'].trim() === '');
+  const processing = rows.filter(r => activeIds.has(r._rowIndex));
+  const pending    = rows.filter(r => {
+    const s = r['Status']?.trim().toLowerCase();
+    return (!s || s === '' || s === 'processing') && !activeIds.has(r._rowIndex);
+  });
   const failed     = rows.filter(r => r['Status']?.toLowerCase().includes('fail'));
 
   const categories = [
@@ -524,7 +532,7 @@ export default function SheetGenerator() {
   const [savingUrl, setSavingUrl]   = useState(false);
   const abortRef = useRef(false);
 
-  const pending  = sheetRows.filter(r => !r['Status'] || r['Status'].trim() === '');
+  const pending  = sheetRows.filter(r => { const s = r['Status']?.trim().toLowerCase(); return !s || s === '' || s === 'processing'; });
   const doneRows = sheetRows.filter(r => r['Status']?.toLowerCase().includes('complet'));
   const failRows = sheetRows.filter(r => r['Status']?.toLowerCase().includes('fail'));
 
@@ -572,7 +580,11 @@ export default function SheetGenerator() {
 
   /* ── Process all pending ── */
   const processAll = async () => {
-    const toProcess = sheetRows.filter(r => !r['Status'] || r['Status'].trim() === '');
+    // Also pick up rows stuck in "Processing" from a previous interrupted session
+    const toProcess = sheetRows.filter(r => {
+      const s = r['Status']?.trim().toLowerCase();
+      return !s || s === '' || s === 'processing';
+    });
     if (!toProcess.length || running) return;
 
     abortRef.current = false;
@@ -613,7 +625,6 @@ export default function SheetGenerator() {
           const needTitle = !title;
           if (needTitle) {
             upd(rid, { procStatus: 'title' });
-            await updateRow(rid, [{ column: 'Status', value: 'Processing' }]);
             const res = await edgeFetch<{ titles: string[] }>('generate-titles', {
               topic: DEFAULT_TOPIC, count: 1,
             });
@@ -625,8 +636,6 @@ export default function SheetGenerator() {
               value: title,
               bgColor: TITLE_HIGHLIGHT_COLOR,
             }]);
-          } else {
-            await updateRow(rid, [{ column: 'Status', value: 'Processing' }]);
           }
 
           /* 2 ─ Anchors */
@@ -917,7 +926,7 @@ export default function SheetGenerator() {
 
         {/* ══ SHEET STATUS TAB ═══════════════════════════════════ */}
         {activeTab === 'status' && (
-          <SheetStatusTab rows={sheetRows} loading={fetching} onRefresh={fetchRows} />
+          <SheetStatusTab rows={sheetRows} procRows={procRows} loading={fetching} onRefresh={fetchRows} />
         )}
 
         {/* ══ HISTORY TAB ════════════════════════════════════════ */}
