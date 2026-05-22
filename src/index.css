@@ -63,3 +63,19 @@
   transform: translateY(-1px);
 }
 .btn-glow:active:not(:disabled) { transform: translateY(0); }
+
+/* ── Dashboard marquee ────────────────────────────── */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.d-marquee-track { animation: marquee 28s linear infinite; }
+.d-marquee-outer:hover .d-marquee-track { animation-play-state: paused; }
+
+/* ── Hero char initial state (prevents FOUC) ───────── */
+.d-char { display: inline-block; }
+
+/* ── Locomotive scrollbar override ─────────────────── */
+.c-scrollbar { position: fixed; right: 0; top: 0; width: 5px; height: 100vh; z-index: 9997; }
+.c-scrollbar_thumb { background: rgba(139,92,246,0.35); border-radius: 999px; }
+.c-scrollbar_thumb:hover { background: rgba(139,92,246,0.65); }
