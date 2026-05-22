@@ -6,7 +6,7 @@ import LocomotiveScroll from 'locomotive-scroll';
 import 'locomotive-scroll/dist/locomotive-scroll.css';
 import {
   Sparkles, BarChart2, Calendar, Globe, Search, Layers,
-  ArrowRight, Zap, ChevronDown,
+  ArrowRight, Zap, ChevronDown, Sheet,
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
 
@@ -28,17 +28,17 @@ const TOOLS = [
     tags: ['Batch', 'Google Docs', 'SEO'],
   },
   {
-    id: 'seo-auditor',
-    title: 'SEO Auditor',
-    tagline: 'Analyze & fix your rankings',
-    desc: 'Deep crawl any URL for on-page issues, keyword gaps, and actionable optimization recommendations.',
-    Icon: BarChart2,
+    id: 'sheet-generator',
+    title: 'Sheet Generator',
+    tagline: 'Generate from Google Sheets',
+    desc: 'Read orders from a Google Sheet, auto-generate articles, and write back status, doc URL, and word count.',
+    Icon: Sheet,
     grad: 'from-emerald-500 to-teal-600',
     accent: 'rgba(16,185,129,',
     accentHex: '#10b981',
-    status: 'soon' as const,
-    href: null,
-    tags: ['Keywords', 'Crawl', 'Audit'],
+    status: 'live' as const,
+    href: '/sheet-generator',
+    tags: ['Google Sheets', 'Batch', 'Auto'],
   },
   {
     id: 'content-calendar',

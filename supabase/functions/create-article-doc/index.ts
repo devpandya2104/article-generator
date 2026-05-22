@@ -356,7 +356,7 @@ Deno.serve(async (req: Request) => {
       return json(405, { error: "Method not allowed" });
     }
 
-    const { title, bodyHtml, topic } = await req.json();
+    const { title, bodyHtml, topic, docName } = await req.json();
     if (!title || !bodyHtml) {
       return json(400, { error: "Provide title and bodyHtml." });
     }
@@ -370,7 +370,7 @@ Deno.serve(async (req: Request) => {
 
     const boundary = "----ArticleDocBoundary" + crypto.randomUUID();
     const metadata = {
-      name: title,
+      name: docName || title,
       mimeType: "application/vnd.google-apps.document",
     };
     const enc = new TextEncoder();
