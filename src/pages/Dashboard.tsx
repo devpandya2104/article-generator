@@ -5,8 +5,8 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import LocomotiveScroll from 'locomotive-scroll';
 import 'locomotive-scroll/dist/locomotive-scroll.css';
 import {
-  Sparkles, BarChart2, Calendar, Globe, Search, Layers,
-  ArrowRight, Zap, ChevronDown, Sheet,
+  Sparkles, Calendar, Globe, Search, Layers,
+  ArrowRight, Zap, Sheet,
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
 
@@ -20,9 +20,10 @@ const TOOLS = [
     tagline: 'SEO articles at scale',
     desc: 'Produce batches of long-form articles with anchors, custom prompts, and direct Google Docs upload.',
     Icon: Sparkles,
+    num: '01',
+    accent: '#7c3aed',
+    accentRgb: '124,58,237',
     grad: 'from-violet-600 to-purple-700',
-    accent: 'rgba(139,92,246,',
-    accentHex: '#7c3aed',
     status: 'live' as const,
     href: '/article-generator',
     tags: ['Batch', 'Google Docs', 'SEO'],
@@ -33,9 +34,10 @@ const TOOLS = [
     tagline: 'Generate from Google Sheets',
     desc: 'Read orders from a Google Sheet, auto-generate articles, and write back status, doc URL, and word count.',
     Icon: Sheet,
+    num: '02',
+    accent: '#10b981',
+    accentRgb: '16,185,129',
     grad: 'from-emerald-500 to-teal-600',
-    accent: 'rgba(16,185,129,',
-    accentHex: '#10b981',
     status: 'live' as const,
     href: '/sheet-generator',
     tags: ['Google Sheets', 'Batch', 'Auto'],
@@ -46,9 +48,10 @@ const TOOLS = [
     tagline: 'Plan your publishing flow',
     desc: 'Visual calendar with AI-suggested cadence, deadline tracking, and team collaboration built in.',
     Icon: Calendar,
+    num: '03',
+    accent: '#0ea5e9',
+    accentRgb: '14,165,233',
     grad: 'from-sky-400 to-cyan-600',
-    accent: 'rgba(14,165,233,',
-    accentHex: '#0ea5e9',
     status: 'soon' as const,
     href: null,
     tags: ['Planning', 'Team', 'Schedule'],
@@ -59,9 +62,10 @@ const TOOLS = [
     tagline: 'Deploy directly to WordPress',
     desc: 'Push article batches straight to WordPress as drafts or live posts via the WP REST API.',
     Icon: Globe,
+    num: '04',
+    accent: '#f97316',
+    accentRgb: '249,115,22',
     grad: 'from-orange-400 to-amber-600',
-    accent: 'rgba(249,115,22,',
-    accentHex: '#f97316',
     status: 'soon' as const,
     href: null,
     tags: ['WordPress', 'REST', 'Deploy'],
@@ -72,9 +76,10 @@ const TOOLS = [
     tagline: 'Deep keyword & topic research',
     desc: 'Uncover high-opportunity keywords, competitor gaps, and trending topics across any niche.',
     Icon: Search,
+    num: '05',
+    accent: '#f43f5e',
+    accentRgb: '244,63,94',
     grad: 'from-rose-400 to-pink-600',
-    accent: 'rgba(244,63,94,',
-    accentHex: '#f43f5e',
     status: 'soon' as const,
     href: null,
     tags: ['Keywords', 'Competitors', 'Trends'],
@@ -85,9 +90,10 @@ const TOOLS = [
     tagline: 'One article, many formats',
     desc: 'Transform any article into Twitter threads, LinkedIn posts, emails, and YouTube scripts instantly.',
     Icon: Layers,
+    num: '06',
+    accent: '#6366f1',
+    accentRgb: '99,102,241',
     grad: 'from-indigo-400 to-blue-600',
-    accent: 'rgba(99,102,241,',
-    accentHex: '#6366f1',
     status: 'soon' as const,
     href: null,
     tags: ['Social', 'Email', 'Video'],
@@ -97,15 +103,91 @@ const TOOLS = [
 type Tool = (typeof TOOLS)[number];
 
 const MARQUEE_WORDS = [
-  'ARTICLE GENERATOR', '✦', 'SEO AUDITOR', '✦',
+  'ARTICLE GENERATOR', '✦', 'SHEET GENERATOR', '✦',
   'CONTENT CALENDAR', '✦', 'WP PUBLISHER', '✦',
   'AI RESEARCHER', '✦', 'BULK REPURPOSER', '✦',
 ];
 
+/* ── Animated background blobs ────────────────────────────────── */
+function BackgroundScene() {
+  return (
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
+      {/* Noise texture */}
+      <div className="absolute inset-0 opacity-[0.028]"
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
+          backgroundSize: '256px 256px',
+        }}
+      />
+
+      {/* Dot grid */}
+      <div className="absolute inset-0 opacity-[0.35]"
+        style={{
+          backgroundImage: 'radial-gradient(circle, rgba(139,92,246,0.35) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
+          maskImage: 'radial-gradient(ellipse 80% 70% at 50% 0%, black 30%, transparent 100%)',
+          WebkitMaskImage: 'radial-gradient(ellipse 80% 70% at 50% 0%, black 30%, transparent 100%)',
+        }}
+      />
+
+      {/* Blob A — large violet center top */}
+      <div className="d-orb-a absolute -top-96 left-1/2 h-[900px] w-[900px] -translate-x-1/2 rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(109,40,217,0.22) 0%, rgba(124,58,237,0.08) 45%, transparent 70%)' }} />
+
+      {/* Blob B — indigo bottom-left */}
+      <div className="d-orb-b absolute -bottom-64 -left-64 h-[700px] w-[700px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(79,70,229,0.15) 0%, transparent 65%)' }} />
+
+      {/* Blob C — cyan top-right */}
+      <div className="d-orb-c absolute -right-40 top-[5%] h-[500px] w-[500px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(6,182,212,0.10) 0%, transparent 65%)' }} />
+
+      {/* Blob D — violet bottom-right, subtle */}
+      <div className="d-orb-d absolute bottom-[10%] -right-32 h-[400px] w-[400px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 65%)' }} />
+
+      {/* Edge vignette */}
+      <div className="absolute inset-0"
+        style={{ background: 'radial-gradient(ellipse 100% 80% at 50% 50%, transparent 40%, #050508 100%)' }} />
+    </div>
+  );
+}
+
+/* ── Mouse spotlight ──────────────────────────────────────────── */
+function MouseSpotlight() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const move = (e: MouseEvent) => {
+      gsap.to(el, {
+        x: e.clientX - 300,
+        y: e.clientY - 300,
+        duration: 1.6,
+        ease: 'power2.out',
+      });
+    };
+    window.addEventListener('mousemove', move);
+    return () => window.removeEventListener('mousemove', move);
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className="pointer-events-none fixed z-0 h-[600px] w-[600px] rounded-full opacity-[0.06]"
+      style={{
+        background: 'radial-gradient(circle, rgba(139,92,246,1) 0%, rgba(109,40,217,0.5) 35%, transparent 70%)',
+        willChange: 'transform',
+      }}
+    />
+  );
+}
+
 /* ── ToolCard ──────────────────────────────────────────────────── */
-function ToolCard({ tool }: { tool: Tool }) {
-  const cardRef  = useRef<HTMLDivElement>(null);
-  const glowRef  = useRef<HTMLDivElement>(null);
+function ToolCard({ tool, index }: { tool: Tool; index: number }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const glowRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
 
@@ -117,91 +199,91 @@ function ToolCard({ tool }: { tool: Tool }) {
       const r = card.getBoundingClientRect();
       const dx = e.clientX - r.left - r.width  / 2;
       const dy = e.clientY - r.top  - r.height / 2;
-      gsap.to(card, {
-        rotateX: (-dy / r.height) * 10,
-        rotateY: ( dx / r.width)  * 10,
-        ease: 'power2.out',
-        duration: 0.4,
-      });
+      gsap.to(card, { rotateX: (-dy / r.height) * 12, rotateY: (dx / r.width) * 12, ease: 'power2.out', duration: 0.35 });
       if (glowRef.current) {
         const gx = ((e.clientX - r.left) / r.width)  * 100;
         const gy = ((e.clientY - r.top)  / r.height) * 100;
         glowRef.current.style.background =
-          `radial-gradient(280px circle at ${gx}% ${gy}%, ${tool.accent}0.18), transparent 65%)`;
+          `radial-gradient(320px circle at ${gx}% ${gy}%, rgba(${tool.accentRgb},0.15), transparent 60%)`;
       }
     };
     const onLeave = () => {
-      gsap.to(card, { rotateX: 0, rotateY: 0, ease: 'elastic.out(1,0.5)', duration: 0.8 });
+      gsap.to(card, { rotateX: 0, rotateY: 0, ease: 'elastic.out(1,0.55)', duration: 0.9 });
+      if (glowRef.current) glowRef.current.style.background = 'none';
     };
+
     card.addEventListener('mousemove',  onMove);
     card.addEventListener('mouseleave', onLeave);
     return () => {
       card.removeEventListener('mousemove',  onMove);
       card.removeEventListener('mouseleave', onLeave);
     };
-  }, [tool.accent]);
+  }, [tool.accentRgb]);
 
   return (
     <div
       ref={cardRef}
+      className="d-tool-card group relative flex flex-col overflow-hidden rounded-2xl border border-white/[0.07] bg-white/[0.025] backdrop-blur-sm transition-colors duration-300 hover:border-white/[0.13]"
+      style={{ perspective: '900px', transformStyle: 'preserve-3d', cursor: tool.href ? 'pointer' : 'default' }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={() => tool.href && navigate(tool.href)}
-      style={{ perspective: '800px', transformStyle: 'preserve-3d' }}
-      className={`group relative overflow-hidden rounded-2xl border bg-[#0a0a14] p-6 transition-colors duration-300 ${hovered ? 'border-white/[0.14]' : 'border-white/[0.06]'} ${tool.href ? 'cursor-pointer' : ''}`}
     >
-      {/* Mouse-tracked glow */}
-      <div
-        ref={glowRef}
-        className="pointer-events-none absolute inset-0 rounded-2xl transition-opacity duration-400"
-        style={{ opacity: hovered ? 1 : 0 }}
-      />
+      {/* Mouse glow */}
+      <div ref={glowRef} className="pointer-events-none absolute inset-0 rounded-2xl transition-opacity duration-300" style={{ opacity: hovered ? 1 : 0 }} />
 
-      {/* Top-edge accent line */}
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-px transition-opacity duration-300"
-        style={{
-          background: `linear-gradient(90deg, transparent, ${tool.accentHex}90, transparent)`,
-          opacity: hovered ? 1 : 0,
-        }}
-      />
+      {/* Top accent line */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px transition-opacity duration-500"
+        style={{ background: `linear-gradient(90deg, transparent 0%, ${tool.accent}cc 50%, transparent 100%)`, opacity: hovered ? 1 : 0 }} />
 
-      {/* Header row */}
-      <div className="relative mb-5 flex items-start justify-between">
-        <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black tracking-[0.14em] uppercase ${tool.status === 'live' ? 'border-emerald-500/25 bg-emerald-500/10 text-emerald-400' : 'border-white/[0.08] bg-white/[0.03] text-slate-600'}`}>
-          {tool.status === 'live' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
-          {tool.status === 'live' ? 'Live' : 'Coming Soon'}
-        </span>
-        <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br ${tool.grad}`}
-          style={{ boxShadow: `0 4px 24px ${tool.accent}0.45)` }}
-        >
-          <tool.Icon className="h-5 w-5 text-white" strokeWidth={2} />
-        </div>
+      {/* Number */}
+      <div className="absolute right-5 top-5 text-[11px] font-black tracking-widest text-white/[0.07] select-none">
+        {tool.num}
       </div>
 
-      {/* Text */}
-      <div className="relative space-y-1.5 mb-4">
-        <h3 className="text-[15px] font-black tracking-tight text-white">{tool.title}</h3>
-        <p className="text-sm font-semibold text-slate-400">{tool.tagline}</p>
-        <p className="pt-1 text-xs leading-relaxed text-slate-600">{tool.desc}</p>
-      </div>
-
-      {/* Tags */}
-      <div className="relative mb-5 flex flex-wrap gap-1.5">
-        {tool.tags.map(tag => (
-          <span key={tag} className="rounded-lg border border-white/[0.07] bg-white/[0.02] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-600">
-            {tag}
+      <div className="relative flex flex-1 flex-col p-6">
+        {/* Icon + status */}
+        <div className="mb-6 flex items-center justify-between">
+          <div
+            className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${tool.grad}`}
+            style={{ boxShadow: `0 4px 28px rgba(${tool.accentRgb},0.5)` }}
+          >
+            <tool.Icon className="h-5 w-5 text-white" strokeWidth={1.75} />
+          </div>
+          <span className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[10px] font-black tracking-widest uppercase ${
+            tool.status === 'live'
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400'
+              : 'border-white/[0.06] bg-white/[0.02] text-slate-600'
+          }`}>
+            {tool.status === 'live' && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+            {tool.status === 'live' ? 'Live' : 'Soon'}
           </span>
-        ))}
-      </div>
+        </div>
 
-      {/* CTA */}
-      <div className="relative flex items-center gap-1.5 text-sm font-black" style={{ color: tool.href ? tool.accentHex : '#475569' }}>
-        {tool.href
-          ? <><span>Open Tool</span><ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1 duration-200" /></>
-          : <><span>Notify Me</span><Zap className="h-4 w-4" /></>
-        }
+        {/* Text */}
+        <div className="mb-4 flex-1">
+          <h3 className="mb-1 text-base font-black tracking-tight text-white">{tool.title}</h3>
+          <p className="mb-3 text-[13px] font-semibold" style={{ color: tool.accent }}>{tool.tagline}</p>
+          <p className="text-[12px] leading-relaxed text-slate-600">{tool.desc}</p>
+        </div>
+
+        {/* Tags */}
+        <div className="mb-5 flex flex-wrap gap-1.5">
+          {tool.tags.map(tag => (
+            <span key={tag} className="rounded-md border border-white/[0.06] bg-white/[0.02] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
+              {tag}
+            </span>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div className={`flex items-center gap-1.5 text-[13px] font-black transition-all duration-200 ${hovered && tool.href ? 'gap-2.5' : ''}`}
+          style={{ color: tool.href ? tool.accent : '#334155' }}>
+          {tool.href
+            ? <><span>Open Tool</span><ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" /></>
+            : <><span>Coming Soon</span><Zap className="h-3.5 w-3.5" /></>
+          }
+        </div>
       </div>
     </div>
   );
@@ -214,18 +296,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     const loco = new LocomotiveScroll({
-      lenisOptions: {
-        lerp: 0.07,
-        smoothWheel: true,
-        syncTouch: false,
-      },
-      initCustomTicker: (render) => {
-        gsap.ticker.add(render);
-        gsap.ticker.lagSmoothing(0);
-      },
-      destroyCustomTicker: (render) => {
-        gsap.ticker.remove(render);
-      },
+      lenisOptions: { lerp: 0.075, smoothWheel: true, syncTouch: false },
+      initCustomTicker:    (render) => { gsap.ticker.add(render); gsap.ticker.lagSmoothing(0); },
+      destroyCustomTicker: (render) => { gsap.ticker.remove(render); },
     });
     locoRef.current = loco;
 
@@ -233,69 +306,60 @@ export default function Dashboard() {
     ScrollTrigger.addEventListener('refresh', () => loco.resize());
 
     const ctx = gsap.context(() => {
-      /* Navbar slide in */
-      gsap.from('.d-nav', { y: -28, opacity: 0, duration: 0.8, ease: 'power3.out', delay: 0.1 });
+
+      /* Navbar */
+      gsap.from('.d-nav', { y: -36, opacity: 0, duration: 1, ease: 'power3.out', delay: 0.05 });
 
       /* Badge */
-      gsap.from('.d-badge', { scale: 0.7, opacity: 0, duration: 0.6, ease: 'back.out(2)', delay: 0.35 });
+      gsap.from('.d-badge', { y: 20, opacity: 0, scale: 0.88, duration: 0.7, ease: 'back.out(2.5)', delay: 0.3 });
 
-      /* Hero chars reveal — overflow-hidden on parent clips the y-slide */
-      gsap.from('.d-char', {
-        y: '110%',
-        duration: 0.78,
-        stagger: 0.016,
+      /* Hero lines — each line slides up from overflow-hidden parent */
+      gsap.from('.d-hero-line', {
+        y: '102%',
+        duration: 1,
+        stagger: 0.11,
         ease: 'power4.out',
-        delay: 0.5,
+        delay: 0.55,
       });
 
-      /* Hero sub + CTAs */
-      gsap.from(['.d-sub', '.d-cta'], {
-        y: 32, opacity: 0, duration: 0.7,
-        stagger: 0.12, ease: 'power3.out', delay: 1.15,
-      });
+      /* Subtitle + CTAs */
+      gsap.from('.d-hero-sub', { y: 28, opacity: 0, duration: 0.8, ease: 'power3.out', delay: 1.05 });
+      gsap.from('.d-hero-cta', { y: 24, opacity: 0, duration: 0.7, stagger: 0.1, ease: 'power3.out', delay: 1.18 });
 
       /* Scroll indicator */
-      gsap.from('.d-scroll-hint', { opacity: 0, duration: 0.6, delay: 1.85 });
-      gsap.to('.d-scroll-arrow', { y: 7, repeat: -1, yoyo: true, duration: 0.9, ease: 'sine.inOut' });
+      gsap.from('.d-scroll-hint', { opacity: 0, y: 10, duration: 0.6, delay: 1.8 });
+      gsap.to('.d-scroll-dot', {
+        y: 14, repeat: -1, yoyo: true, duration: 1.1, ease: 'sine.inOut', delay: 2.2,
+      });
 
       /* Orb floats */
-      gsap.to('.d-orb-a', { y: -35, scale: 1.06, duration: 8,  repeat: -1, yoyo: true, ease: 'sine.inOut' });
-      gsap.to('.d-orb-b', { y:  30, scale: 0.94, duration: 11, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 2.5 });
-      gsap.to('.d-orb-c', { y: -22, scale: 1.09, duration: 13, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 5 });
+      gsap.to('.d-orb-a', { y: -50, duration: 9,  repeat: -1, yoyo: true, ease: 'sine.inOut' });
+      gsap.to('.d-orb-b', { y:  40, duration: 12, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 3 });
+      gsap.to('.d-orb-c', { y: -30, x: -20, duration: 15, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 5 });
+      gsap.to('.d-orb-d', { y:  25, duration: 10, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 1.5 });
 
-      /* Marquee pause on hover handled by CSS */
+      /* Divider lines grow */
+      gsap.from('.d-line', { scaleX: 0, transformOrigin: 'left', duration: 1.2, ease: 'power3.out', delay: 0.7 });
 
-      /* Section labels scroll reveal */
-      gsap.set('.d-reveal', { autoAlpha: 0, y: 38 });
+      /* Section headers */
+      gsap.set('.d-reveal', { autoAlpha: 0, y: 40 });
       ScrollTrigger.batch('.d-reveal', {
-        onEnter: batch => gsap.to(batch, {
-          autoAlpha: 1, y: 0,
-          stagger: 0.1, duration: 0.75, ease: 'power3.out',
-        }),
-        start: 'top 88%',
-        once: true,
+        onEnter: batch => gsap.to(batch, { autoAlpha: 1, y: 0, stagger: 0.1, duration: 0.85, ease: 'power3.out' }),
+        start: 'top 87%', once: true,
       });
 
-      /* Tool cards cascade */
-      gsap.set('.d-tool-card', { autoAlpha: 0, y: 55, scale: 0.96 });
+      /* Tool cards */
+      gsap.set('.d-tool-card', { autoAlpha: 0, y: 60, scale: 0.95 });
       ScrollTrigger.batch('.d-tool-card', {
-        onEnter: batch => gsap.to(batch, {
-          autoAlpha: 1, y: 0, scale: 1,
-          stagger: 0.075, duration: 0.7, ease: 'back.out(1.4)',
-        }),
-        start: 'top 88%',
-        once: true,
+        onEnter: batch => gsap.to(batch, { autoAlpha: 1, y: 0, scale: 1, stagger: 0.08, duration: 0.75, ease: 'back.out(1.3)' }),
+        start: 'top 89%', once: true,
       });
 
-      /* Stats slide up */
-      gsap.set('.d-stat', { autoAlpha: 0, y: 45 });
+      /* Stats */
+      gsap.set('.d-stat', { autoAlpha: 0, y: 50 });
       ScrollTrigger.batch('.d-stat', {
-        onEnter: batch => gsap.to(batch, {
-          autoAlpha: 1, y: 0,
-          stagger: 0.13, duration: 0.7, ease: 'power3.out',
-        }),
-        start: 'top 85%',
-        once: true,
+        onEnter: batch => gsap.to(batch, { autoAlpha: 1, y: 0, stagger: 0.15, duration: 0.8, ease: 'power3.out' }),
+        start: 'top 84%', once: true,
       });
     });
 
@@ -305,215 +369,199 @@ export default function Dashboard() {
       ctx.revert();
       loco.destroy();
       ScrollTrigger.getAll().forEach(t => t.kill());
-      ScrollTrigger.removeEventListener('refresh', () => loco.resize());
     };
   }, []);
 
-  const scrollToTools = () =>
-    locoRef.current?.scrollTo('#d-tools', { duration: 1.3 });
-
-  /* ─ Hero heading split helper ─ */
-  const chars = (text: string, cls = 'text-white') =>
-    text.split('').map((c, i) => (
-      <span key={i} className={`d-char inline-block ${cls}`}>
-        {c === ' ' ? ' ' : c}
-      </span>
-    ));
+  const scrollToTools = () => locoRef.current?.scrollTo('#d-tools', { duration: 1.4 });
 
   return (
-    <div className="bg-[#04040a] text-slate-100">
+    <div className="relative bg-[#050508] text-slate-100 selection:bg-violet-700/40">
       <CustomCursor />
+      <BackgroundScene />
+      <MouseSpotlight />
 
-      {/* ── Navbar ────────────────────────────────────────────── */}
-      <header className="d-nav fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-8 py-4">
-        <div className="absolute inset-0 border-b border-white/[0.05] bg-[#04040a]/70 backdrop-blur-xl" />
+      {/* ── Navbar ──────────────────────────────────────────────── */}
+      <header className="d-nav fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-8 py-5">
+        <div className="absolute inset-0 border-b border-white/[0.05] bg-[#050508]/60 backdrop-blur-2xl" />
+
+        {/* Logo */}
         <div className="relative flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-700">
-            <Sparkles className="h-4 w-4 text-white" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-700"
+            style={{ boxShadow: '0 0 18px rgba(124,58,237,0.5)' }}>
+            <Sparkles className="h-4 w-4 text-white" strokeWidth={2} />
           </div>
           <span className="text-[15px] font-black tracking-tight text-white">ContentForge</span>
         </div>
-        <nav className="relative flex items-center gap-7">
-          <button onClick={scrollToTools} className="text-sm font-semibold text-slate-500 transition-colors hover:text-slate-200">
+
+        {/* Nav links */}
+        <nav className="relative flex items-center gap-8">
+          <button onClick={scrollToTools}
+            className="text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-200">
             Tools
           </button>
-          <button onClick={() => navigate('/article-generator')} className="text-sm font-semibold text-slate-500 transition-colors hover:text-slate-200">
+          <button onClick={() => navigate('/article-generator')}
+            className="text-[13px] font-semibold text-slate-500 transition-colors hover:text-slate-200">
             Generator
           </button>
-          <button
-            onClick={() => navigate('/article-generator')}
-            className="rounded-xl bg-violet-600 px-5 py-2 text-sm font-black text-white transition-colors hover:bg-violet-500"
-            style={{ boxShadow: '0 0 22px rgba(124,58,237,0.4), 0 2px 12px rgba(0,0,0,0.4)' }}
-          >
+          <button onClick={() => navigate('/article-generator')}
+            className="rounded-xl bg-violet-600 px-5 py-2 text-[13px] font-black text-white transition-all hover:bg-violet-500 hover:-translate-y-px active:translate-y-0"
+            style={{ boxShadow: '0 0 24px rgba(124,58,237,0.45), 0 2px 14px rgba(0,0,0,0.5)' }}>
             Get Started
           </button>
         </nav>
       </header>
 
-      {/* ══ HERO ══════════════════════════════════════════════════ */}
-      <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 pt-20">
+      {/* ══ HERO ════════════════════════════════════════════════════ */}
+      <section className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 pt-24 pb-32">
 
-        {/* ── Background ── */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          {/* Grid */}
-          <div className="absolute inset-0" style={{
-            backgroundImage: 'linear-gradient(rgba(139,92,246,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.04) 1px, transparent 1px)',
-            backgroundSize: '72px 72px',
-          }} />
-          {/* Orbs */}
-          <div className="d-orb-a absolute -top-80 left-1/2 h-[780px] w-[780px] -translate-x-1/2 rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.2) 0%, transparent 70%)' }} />
-          <div className="d-orb-b absolute -bottom-40 -left-72 h-[560px] w-[560px] rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(99,102,241,0.13) 0%, transparent 70%)' }} />
-          <div className="d-orb-c absolute right-[-15%] top-[15%] h-[420px] w-[420px] rounded-full"
-            style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.11) 0%, transparent 70%)' }} />
-          {/* Vignette */}
-          <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 80% 60% at 50% 0%, transparent 0%, #04040a 100%)' }} />
+        {/* Badge */}
+        <div className="d-badge mb-10 inline-flex items-center gap-2 rounded-full border border-violet-500/25 bg-violet-500/[0.08] px-4 py-1.5 text-[10px] font-black tracking-[0.2em] uppercase text-violet-400">
+          <Sparkles className="h-3 w-3" />
+          Content Creation Suite
         </div>
 
-        {/* ── Content ── */}
-        <div className="relative z-10 mx-auto max-w-5xl text-center">
+        {/* Hero heading — each word in its own overflow-hidden row so no mid-word breaks */}
+        <h1 className="mb-10 select-none text-center font-black leading-[0.88] tracking-tighter"
+          style={{ fontSize: 'clamp(3.8rem, 10.5vw, 9.5rem)' }}>
+          <span className="block overflow-hidden">
+            <span className="d-hero-line inline-block text-white">ALL YOUR</span>
+          </span>
+          <span className="block overflow-hidden">
+            <span className="d-hero-line inline-block text-white">CONTENT</span>
+          </span>
+          <span className="block overflow-hidden pb-1">
+            <span className="d-hero-line inline-block bg-gradient-to-r from-violet-400 via-fuchsia-300 to-cyan-400 bg-clip-text text-transparent"
+              style={{ filter: 'drop-shadow(0 0 40px rgba(139,92,246,0.4))' }}>
+              TOOLS.
+            </span>
+          </span>
+          <span className="block overflow-hidden" style={{ fontSize: 'clamp(1.6rem, 4.2vw, 4rem)' }}>
+            <span className="d-hero-line inline-block text-slate-700">ONE PLACE.</span>
+          </span>
+        </h1>
 
-          {/* Badge */}
-          <div className="d-badge mb-8 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/[0.07] px-4 py-1.5 text-[11px] font-black tracking-[0.18em] uppercase text-violet-400">
-            <Sparkles className="h-3 w-3" />
-            Content Creation Suite
-          </div>
+        {/* Subtitle */}
+        <p className="d-hero-sub mx-auto mb-10 max-w-md text-center text-[15px] leading-relaxed text-slate-500">
+          AI-powered tools to create, optimize, and publish content at scale.
+          One dashboard. Unlimited potential.
+        </p>
 
-          {/* H1 */}
-          <h1
-            className="mb-6 select-none font-black leading-[0.9] tracking-tighter"
-            style={{ fontSize: 'clamp(3.2rem, 9.5vw, 8.5rem)' }}
+        {/* CTAs */}
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          <button
+            className="d-hero-cta group flex items-center gap-2.5 rounded-2xl bg-violet-600 px-9 py-3.5 text-[14px] font-black text-white transition-all hover:bg-violet-500 hover:-translate-y-0.5 active:translate-y-0"
+            style={{ boxShadow: '0 0 36px rgba(124,58,237,0.55), 0 4px 24px rgba(0,0,0,0.5)' }}
+            onClick={() => navigate('/article-generator')}
           >
-            <span className="block overflow-hidden pb-2">
-              {chars('ALL YOUR')}
-            </span>
-            <span className="block overflow-hidden pb-2">
-              {chars('CONTENT ')}
-              {'TOOLS'.split('').map((c, i) => (
-                <span key={i} className="d-char inline-block bg-gradient-to-r from-violet-400 via-fuchsia-400 to-cyan-400 bg-clip-text text-transparent">
-                  {c}
-                </span>
-              ))}
-            </span>
-            <span className="block overflow-hidden">
-              {chars('ONE PLACE.', 'text-slate-700')}
-            </span>
-          </h1>
-
-          {/* Subtitle */}
-          <p className="d-sub mx-auto mb-10 max-w-lg text-base leading-relaxed text-slate-500">
-            AI-powered tools to create, optimize, and publish content at scale.
-            One dashboard. Unlimited potential.
-          </p>
-
-          {/* CTAs */}
-          <div className="d-cta flex items-center justify-center gap-4">
-            <button
-              onClick={() => navigate('/article-generator')}
-              className="group flex items-center gap-2 rounded-2xl bg-violet-600 px-8 py-3.5 text-sm font-black text-white transition-all hover:bg-violet-500 hover:-translate-y-0.5"
-              style={{ boxShadow: '0 0 30px rgba(124,58,237,0.5), 0 4px 24px rgba(0,0,0,0.4)' }}
-            >
-              Start Creating
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </button>
-            <button
-              onClick={scrollToTools}
-              className="rounded-2xl border border-white/[0.1] bg-white/[0.04] px-8 py-3.5 text-sm font-black text-slate-300 transition-all hover:bg-white/[0.08] hover:text-white"
-            >
-              Explore Tools
-            </button>
-          </div>
+            Start Creating
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </button>
+          <button
+            className="d-hero-cta rounded-2xl border border-white/[0.1] bg-white/[0.04] px-9 py-3.5 text-[14px] font-black text-slate-300 backdrop-blur-sm transition-all hover:bg-white/[0.08] hover:text-white hover:-translate-y-0.5 active:translate-y-0"
+            onClick={scrollToTools}
+          >
+            Explore Tools
+          </button>
         </div>
 
         {/* Scroll indicator */}
-        <div className="d-scroll-hint absolute bottom-10 flex flex-col items-center gap-2 text-slate-700">
-          <span className="text-[10px] font-black tracking-[0.22em] uppercase">Scroll</span>
-          <ChevronDown className="d-scroll-arrow h-4 w-4" />
+        <div className="d-scroll-hint absolute bottom-10 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3">
+          <span className="text-[9px] font-black tracking-[0.3em] uppercase text-slate-700">Scroll</span>
+          {/* Scroll pill */}
+          <div className="relative h-10 w-5 rounded-full border border-white/[0.12]">
+            <div className="d-scroll-dot absolute left-1/2 top-1.5 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-violet-500" />
+          </div>
         </div>
       </section>
 
-      {/* ══ MARQUEE ═══════════════════════════════════════════════ */}
-      <div className="relative overflow-hidden border-y border-white/[0.05] py-5">
-        {/* Fade edges */}
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-32"
-          style={{ background: 'linear-gradient(90deg, #04040a, transparent)' }} />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-32"
-          style={{ background: 'linear-gradient(270deg, #04040a, transparent)' }} />
-
+      {/* ══ MARQUEE ══════════════════════════════════════════════════ */}
+      <div className="relative z-10 overflow-hidden border-y border-white/[0.05] py-[18px]">
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24"
+          style={{ background: 'linear-gradient(90deg, #050508, transparent)' }} />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24"
+          style={{ background: 'linear-gradient(270deg, #050508, transparent)' }} />
         <div className="d-marquee-outer flex whitespace-nowrap">
-          <div className="d-marquee-track flex shrink-0 items-center gap-10 pr-10">
+          <div className="d-marquee-track flex shrink-0 items-center gap-12 pr-12">
             {[...MARQUEE_WORDS, ...MARQUEE_WORDS].map((w, i) => (
-              <span key={i} className={`text-[11px] font-black tracking-[0.2em] uppercase ${w === '✦' ? 'text-violet-600 text-base' : 'text-slate-700'}`}>
-                {w}
-              </span>
+              <span key={i} className={`select-none text-[10px] font-black tracking-[0.22em] uppercase ${
+                w === '✦' ? 'text-violet-600' : 'text-slate-700'
+              }`}>{w}</span>
             ))}
           </div>
         </div>
       </div>
 
-      {/* ══ TOOLS GRID ════════════════════════════════════════════ */}
-      <section id="d-tools" className="mx-auto max-w-7xl px-6 py-32">
-        <div className="mb-16 text-center">
-          <p className="d-reveal mb-3 text-[11px] font-black tracking-[0.22em] uppercase text-violet-500">
-            The Toolkit
-          </p>
-          <h2 className="d-reveal text-4xl font-black tracking-tight text-white sm:text-5xl">
-            Everything you need
-          </h2>
-          <p className="d-reveal mx-auto mt-4 max-w-md text-base text-slate-500">
-            From ideation to publication — every step covered.
+      {/* ══ TOOLS GRID ══════════════════════════════════════════════ */}
+      <section id="d-tools" className="relative z-10 mx-auto max-w-7xl px-6 py-32">
+        {/* Section header */}
+        <div className="mb-20 flex items-end justify-between">
+          <div>
+            <p className="d-reveal mb-3 text-[10px] font-black tracking-[0.28em] uppercase text-violet-500">
+              — The Toolkit
+            </p>
+            <h2 className="d-reveal font-black leading-none tracking-tight text-white"
+              style={{ fontSize: 'clamp(2.4rem, 5.5vw, 4.5rem)' }}>
+              Everything you need<br />
+              <span className="text-slate-700">to create at scale.</span>
+            </h2>
+          </div>
+          <p className="d-reveal hidden max-w-xs text-right text-[13px] leading-relaxed text-slate-600 lg:block">
+            From ideation to publication — every step covered by a dedicated tool.
           </p>
         </div>
 
-        {/* Card grid — perspective applied to grid so cards share vanishing point */}
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3" style={{ perspective: '1200px' }}>
-          {TOOLS.map(tool => (
-            <div key={tool.id} className="d-tool-card">
-              <ToolCard tool={tool} />
-            </div>
-          ))}
+        {/* Grid */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" style={{ perspective: '1400px' }}>
+          {TOOLS.map((tool, i) => <ToolCard key={tool.id} tool={tool} index={i} />)}
         </div>
       </section>
 
-      {/* ══ STATS ═════════════════════════════════════════════════ */}
-      <section className="border-y border-white/[0.05] px-6 py-24">
-        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-12 text-center sm:grid-cols-3">
+      {/* ══ STATS BAND ══════════════════════════════════════════════ */}
+      <div className="relative z-10 border-y border-white/[0.05]">
+        {/* Glow behind stats */}
+        <div className="pointer-events-none absolute inset-0"
+          style={{ background: 'radial-gradient(ellipse 60% 100% at 50% 50%, rgba(124,58,237,0.06), transparent)' }} />
+        <div className="relative mx-auto grid max-w-4xl grid-cols-1 gap-0 divide-y divide-white/[0.05] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           {[
             { value: '1.2M+', label: 'Words Generated',    sub: 'and counting'      },
             { value: '48K+',  label: 'Articles Published', sub: 'across all niches' },
             { value: '6',     label: 'Tools & Growing',    sub: 'new tools monthly' },
           ].map(stat => (
-            <div key={stat.value} className="d-stat">
-              <div
-                className="mb-1 text-5xl font-black tracking-tight"
-                style={{ background: 'linear-gradient(135deg, #fff 30%, #7c3aed 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}
-              >
+            <div key={stat.value} className="d-stat px-10 py-14 text-center">
+              <div className="mb-2 font-black leading-none"
+                style={{
+                  fontSize: 'clamp(2.8rem, 6vw, 4rem)',
+                  background: 'linear-gradient(135deg, #fff 20%, rgba(139,92,246,0.9) 100%)',
+                  WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                }}>
                 {stat.value}
               </div>
-              <div className="mb-0.5 text-sm font-black text-slate-300">{stat.label}</div>
-              <div className="text-xs text-slate-600">{stat.sub}</div>
+              <div className="mb-1 text-[13px] font-black text-slate-300">{stat.label}</div>
+              <div className="text-[11px] text-slate-600">{stat.sub}</div>
             </div>
           ))}
         </div>
-      </section>
+      </div>
 
-      {/* ══ CTA BANNER ════════════════════════════════════════════ */}
-      <section className="px-6 py-28 text-center">
-        <div className="d-reveal mx-auto max-w-2xl">
-          <h2 className="mb-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
-            Ready to build<br />
-            <span className="bg-gradient-to-r from-violet-400 to-cyan-400 bg-clip-text text-transparent">
-              faster content?
-            </span>
+      {/* ══ BOTTOM CTA ══════════════════════════════════════════════ */}
+      <section className="relative z-10 px-6 py-36 text-center">
+        {/* Big glow */}
+        <div className="pointer-events-none absolute left-1/2 top-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 65%)' }} />
+
+        <div className="relative d-reveal mx-auto max-w-2xl">
+          <p className="mb-4 text-[10px] font-black tracking-[0.28em] uppercase text-violet-500">Get Started Today</p>
+          <h2 className="mb-5 font-black tracking-tight text-white"
+            style={{ fontSize: 'clamp(2.4rem, 6vw, 4.5rem)', lineHeight: 1 }}>
+            Ready to build faster content?
           </h2>
-          <p className="mb-8 text-base text-slate-500">
-            Start with the Article Generator today — more tools unlock soon.
+          <p className="mb-10 text-[15px] text-slate-500">
+            Start with the Article Generator — more tools unlock soon.
           </p>
           <button
             onClick={() => navigate('/article-generator')}
-            className="group inline-flex items-center gap-2 rounded-2xl bg-violet-600 px-9 py-4 text-base font-black text-white transition-all hover:bg-violet-500 hover:-translate-y-0.5"
-            style={{ boxShadow: '0 0 40px rgba(124,58,237,0.5), 0 4px 30px rgba(0,0,0,0.5)' }}
+            className="group inline-flex items-center gap-3 rounded-2xl bg-violet-600 px-10 py-4 text-[15px] font-black text-white transition-all hover:bg-violet-500 hover:-translate-y-0.5 active:translate-y-0"
+            style={{ boxShadow: '0 0 50px rgba(124,58,237,0.55), 0 4px 32px rgba(0,0,0,0.5)' }}
           >
             Open Article Generator
             <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
@@ -521,22 +569,26 @@ export default function Dashboard() {
         </div>
       </section>
 
-      {/* ══ FOOTER ════════════════════════════════════════════════ */}
-      <footer className="border-t border-white/[0.05] px-8 py-10">
+      {/* ══ FOOTER ══════════════════════════════════════════════════ */}
+      <footer className="relative z-10 border-t border-white/[0.05] px-8 py-8">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-4 sm:flex-row">
           <div className="flex items-center gap-2.5">
             <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-purple-700">
-              <Sparkles className="h-3.5 w-3.5 text-white" />
+              <Sparkles className="h-3.5 w-3.5 text-white" strokeWidth={2} />
             </div>
-            <span className="text-sm font-black text-slate-600">ContentForge</span>
+            <span className="text-[13px] font-black text-slate-600">ContentForge</span>
           </div>
-          <p className="text-xs text-slate-700">© 2026 ContentForge · All tools, one place.</p>
+          <p className="text-[11px] text-slate-700">© 2026 ContentForge · All tools, one place.</p>
           <div className="flex items-center gap-5">
-            <button onClick={() => navigate('/article-generator')} className="text-xs text-slate-600 transition-colors hover:text-slate-400">
+            <button onClick={() => navigate('/article-generator')}
+              className="text-[11px] text-slate-600 transition-colors hover:text-slate-400">
               Article Generator
             </button>
             <span className="text-slate-800">·</span>
-            <span className="text-xs text-slate-700">More coming soon</span>
+            <button onClick={() => navigate('/sheet-generator')}
+              className="text-[11px] text-slate-600 transition-colors hover:text-slate-400">
+              Sheet Generator
+            </button>
           </div>
         </div>
       </footer>
