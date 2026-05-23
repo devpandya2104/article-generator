@@ -52,3 +52,11 @@ jobs:
           supabase functions deploy sheet-proxy \
             --project-ref enaagkawcosptdeiarbn \
             --no-verify-jwt
+
+      - name: Deploy convert-docx
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy convert-docx \
+            --project-ref enaagkawcosptdeiarbn \
+            --no-verify-jwt

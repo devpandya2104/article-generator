@@ -49,9 +49,9 @@ const TOOLS = [
     desc: 'Upload multiple .docx files and get Google Doc URLs back in seconds. Batch convert with one click.',
     Icon: FileText,
     num: '03',
-    accent: '#3b82f6',
-    accentRgb: '59,130,246',
-    grad: 'from-blue-500 to-cyan-600',
+    accent: '#a78bfa',
+    accentRgb: '167,139,250',
+    grad: 'from-violet-400 to-indigo-600',
     status: 'live' as const,
     href: '/doc-converter',
     tags: ['DOCX', 'Google Docs', 'Batch'],
@@ -168,26 +168,26 @@ function BackgroundScene() {
           opacity: 0.28,
         }} />
 
-      {/* Blob 3 — indigo, bottom-left */}
+      {/* Blob 3 — deep violet, bottom-left */}
       <div className="bg-blob-3 absolute"
         style={{
           bottom: '-20%', left: '5%',
           width: '60vw', height: '60vw',
           borderRadius: '50%',
-          background: '#3730a3',
+          background: '#4c1d95',
           filter: 'blur(150px)',
           opacity: 0.3,
         }} />
 
-      {/* Blob 4 — cyan accent, bottom-right */}
+      {/* Blob 4 — warm purple, bottom-right */}
       <div className="bg-blob-4 absolute"
         style={{
           bottom: '5%', right: '-10%',
           width: '40vw', height: '40vw',
           borderRadius: '50%',
-          background: '#0e7490',
+          background: '#6d28d9',
           filter: 'blur(130px)',
-          opacity: 0.2,
+          opacity: 0.18,
         }} />
 
       {/* Film grain noise */}
