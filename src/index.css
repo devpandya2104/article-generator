@@ -64,6 +64,12 @@
 }
 .btn-glow:active:not(:disabled) { transform: translateY(0); }
 
+/* ── Animated gradient text (TOOLS.) ──────────────── */
+@keyframes gradient-flow {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 300% 50%; }
+}
+
 /* ── Dashboard marquee ────────────────────────────── */
 @keyframes marquee {
   from { transform: translateX(0); }
