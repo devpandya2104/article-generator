@@ -175,23 +175,11 @@ export default function Dashboard() {
 
     const ctx = gsap.context(() => {
 
-      /* ── Blob parallax on scroll ── */
-      gsap.to('.bg-blob-1', { y: -200, ease: 'none', scrollTrigger: { start: 'top top', end: 'bottom top', scrub: 1.5 } });
-      gsap.to('.bg-blob-2', { y: -120, ease: 'none', scrollTrigger: { start: 'top top', end: 'bottom top', scrub: 2 } });
-      gsap.to('.bg-blob-3', { y:  100, ease: 'none', scrollTrigger: { start: 'top top', end: 'bottom top', scrub: 1 } });
-      gsap.to('.bg-blob-4', { y:  80,  ease: 'none', scrollTrigger: { start: 'top top', end: 'bottom top', scrub: 2.5 } });
-
-      /* ── Blob float animations ── */
-      gsap.to('.bg-blob-1', { x: 70, y: '-=60', scale: 1.08, duration: 10, repeat: -1, yoyo: true, ease: 'sine.inOut' });
-      gsap.to('.bg-blob-2', { x: -50, y: '+=50', scale: 0.92, duration: 14, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 2 });
-      gsap.to('.bg-blob-3', { x: 60, y: '-=40', scale: 1.1, duration: 11, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 5 });
-      gsap.to('.bg-blob-4', { x: -40, y: '+=55', scale: 0.9, duration: 13, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 1 });
-
-      /* ── Floating accent dots ── */
-      gsap.to('.fdot', {
-        y: -25, duration: 2.5, stagger: { each: 0.5, from: 'random' },
-        repeat: -1, yoyo: true, ease: 'sine.inOut',
-      });
+      /* ── Orb slow drift (transform only — GPU composited, no filter:blur cost) ── */
+      gsap.to('.bg-blob-1', { x: 60, y: -50, duration: 18, repeat: -1, yoyo: true, ease: 'sine.inOut' });
+      gsap.to('.bg-blob-2', { x: -45, y: 40, duration: 14, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 3 });
+      gsap.to('.bg-blob-3', { x: 50, y: -35, duration: 16, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 6 });
+      gsap.to('.bg-blob-4', { x: -35, y: 45, duration: 13, repeat: -1, yoyo: true, ease: 'sine.inOut', delay: 1 });
 
       /* ── Navbar ── */
       gsap.from('.d-nav', { y: -50, opacity: 0, duration: 1, ease: 'power3.out' });
@@ -264,15 +252,15 @@ export default function Dashboard() {
       {/* ══ BACKGROUND ══════════════════════════════════════════════ */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden" aria-hidden>
 
-        {/* Blobs — multicolor for "colorful dark" feel */}
-        <div className="bg-blob-1 absolute rounded-full"
-          style={{ top: '-25%', left: '-5%', width: '85vw', height: '85vw', background: '#5b21b6', filter: 'blur(170px)', opacity: 0.38 }} />
-        <div className="bg-blob-2 absolute rounded-full"
-          style={{ top: '-20%', right: '-15%', width: '55vw', height: '55vw', background: '#a21caf', filter: 'blur(140px)', opacity: 0.28 }} />
-        <div className="bg-blob-3 absolute rounded-full"
-          style={{ bottom: '-25%', left: '-5%', width: '55vw', height: '55vw', background: '#065f46', filter: 'blur(150px)', opacity: 0.28 }} />
-        <div className="bg-blob-4 absolute rounded-full"
-          style={{ bottom: '-10%', right: '-10%', width: '45vw', height: '45vw', background: '#9f1239', filter: 'blur(140px)', opacity: 0.22 }} />
+        {/* Orbs — radial-gradient (zero filter:blur cost, GPU transform-only animation) */}
+        <div className="bg-blob-1 absolute"
+          style={{ top: '-20%', left: '-10%', width: '80vw', height: '80vw', background: 'radial-gradient(circle at center, rgba(91,33,182,0.60) 0%, rgba(91,33,182,0.25) 40%, transparent 70%)', willChange: 'transform' }} />
+        <div className="bg-blob-2 absolute"
+          style={{ top: '-15%', right: '-20%', width: '55vw', height: '55vw', background: 'radial-gradient(circle at center, rgba(162,28,175,0.55) 0%, rgba(162,28,175,0.20) 40%, transparent 70%)', willChange: 'transform' }} />
+        <div className="bg-blob-3 absolute"
+          style={{ bottom: '-20%', left: '-10%', width: '55vw', height: '55vw', background: 'radial-gradient(circle at center, rgba(6,95,70,0.55) 0%, rgba(6,95,70,0.20) 40%, transparent 70%)', willChange: 'transform' }} />
+        <div className="bg-blob-4 absolute"
+          style={{ bottom: '-5%', right: '-15%', width: '45vw', height: '45vw', background: 'radial-gradient(circle at center, rgba(159,18,57,0.50) 0%, rgba(159,18,57,0.18) 40%, transparent 70%)', willChange: 'transform' }} />
 
         {/* White dot grid */}
         <div className="absolute inset-0"
