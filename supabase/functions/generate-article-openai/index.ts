@@ -99,7 +99,7 @@ Deno.serve(async (req: Request) => {
     const anchors: Anchor[] = Array.isArray(body.anchors) ? body.anchors : [];
     const customPrompt: string = body.articlePrompt || "";
     const language: string = body.language || "English";
-    const model: string = body.model || "gpt-4o-mini";
+    const model: string = body.model || "gpt-5.4-mini";
 
     if (!title) return json(400, { error: "Provide a title." });
 

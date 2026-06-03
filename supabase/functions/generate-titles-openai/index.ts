@@ -20,7 +20,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const topic: string = body.topic;
     const count: number = body.count;
-    const model: string = body.model || "gpt-4o-mini";
+    const model: string = body.model || "gpt-5.4-mini";
     const customPrompt: string = body.titlePrompt || "";
 
     if (!topic || !count || count < 1 || count > 200) {

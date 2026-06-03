@@ -19,13 +19,12 @@ const TITLE_HIGHLIGHT_COLOR = '#e0f2fe'; // light sky — marks auto-generated t
 
 /* ── OpenAI models ──────────────────────────────────────────────── */
 const OPENAI_MODELS = [
-  { id: 'gpt-4o',        label: 'GPT-4o',        desc: 'Flagship multimodal'  },
-  { id: 'gpt-4o-mini',   label: 'GPT-4o Mini',   desc: 'Fast & cost-efficient' },
-  { id: 'gpt-4-turbo',   label: 'GPT-4 Turbo',   desc: 'High performance'     },
-  { id: 'gpt-4.1',       label: 'GPT-4.1',        desc: 'Latest GPT-4'         },
-  { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', desc: 'Budget option'        },
-  { id: 'o3-mini',       label: 'o3 Mini',        desc: 'Reasoning'            },
-  { id: 'o4-mini',       label: 'o4 Mini',        desc: 'Fast reasoning'       },
+  { id: 'gpt-5.4-mini',  label: 'GPT-5.4 Mini',  desc: '★ Recommended — ~$0.01/article' },
+  { id: 'gpt-5.4-nano',  label: 'GPT-5.4 Nano',  desc: 'Cheapest — ~$0.003/article'     },
+  { id: 'gpt-5.4',       label: 'GPT-5.4',        desc: 'Higher quality — ~$0.03/article' },
+  { id: 'gpt-5.5',       label: 'GPT-5.5',        desc: 'Flagship — ~$0.07/article'      },
+  { id: 'gpt-5.5-pro',   label: 'GPT-5.5 Pro',   desc: 'Max capability — ~$0.40/article' },
+  { id: 'gpt-5.4-pro',   label: 'GPT-5.4 Pro',   desc: 'Pro tier — ~$0.40/article'      },
 ] as const;
 type OpenAIModelId = (typeof OPENAI_MODELS)[number]['id'];
 
@@ -559,7 +558,7 @@ export default function SheetGeneratorOpenAI() {
   const [newUrl, setNewUrl]         = useState('');
   const [savingUrl, setSavingUrl]   = useState(false);
   const [selectedModel, setSelectedModel] = useState<OpenAIModelId>(
-    () => (localStorage.getItem(MODEL_KEY) as OpenAIModelId) || 'gpt-4o-mini'
+    () => (localStorage.getItem(MODEL_KEY) as OpenAIModelId) || 'gpt-5.4-mini'
   );
   const abortRef = useRef(false);
 
