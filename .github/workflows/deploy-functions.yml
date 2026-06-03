@@ -60,3 +60,19 @@ jobs:
           supabase functions deploy convert-docx \
             --project-ref enaagkawcosptdeiarbn \
             --no-verify-jwt
+
+      - name: Deploy generate-titles-openai
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy generate-titles-openai \
+            --project-ref enaagkawcosptdeiarbn \
+            --no-verify-jwt
+
+      - name: Deploy generate-article-openai
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy generate-article-openai \
+            --project-ref enaagkawcosptdeiarbn \
+            --no-verify-jwt

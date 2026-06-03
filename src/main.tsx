@@ -5,16 +5,18 @@ import Dashboard from './pages/Dashboard';
 import ArticleGenerator from './pages/ArticleGenerator';
 import SheetGenerator from './pages/SheetGenerator';
 import DocConverter from './pages/DocConverter';
+import SheetGeneratorOpenAI from './pages/SheetGeneratorOpenAI';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        <Route path="/"                    element={<Dashboard />} />
-        <Route path="/article-generator"   element={<ArticleGenerator />} />
-        <Route path="/sheet-generator"     element={<SheetGenerator />} />
-        <Route path="/doc-converter"       element={<DocConverter />} />
+        <Route path="/"                         element={<Dashboard />} />
+        <Route path="/article-generator"        element={<ArticleGenerator />} />
+        <Route path="/sheet-generator"          element={<SheetGenerator />} />
+        <Route path="/doc-converter"            element={<DocConverter />} />
+        <Route path="/sheet-generator-openai"   element={<SheetGeneratorOpenAI />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>
