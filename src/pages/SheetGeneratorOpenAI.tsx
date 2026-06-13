@@ -15,7 +15,11 @@ const ANON_KEY      = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 const STORAGE_KEY   = 'sheet_gen_openai_script_url';
 const MODEL_KEY     = 'sheet_gen_openai_model';
 const DEFAULT_TOPIC = 'Online Slots';
-const TITLE_HIGHLIGHT_COLOR = '#e0f2fe'; // light sky — marks auto-generated titles
+const TITLE_HIGHLIGHT_COLOR = '#e0f2fe';
+
+// Pre-configured — no setup needed for any user/browser
+const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzHy9o-ZV2DFwDyB15iv5x6V12e_ZUjjj4jpc3zL5qhzua3K-2KEm117Wbf0AP5zHM-/exec';
+const SHEET_URL          = 'https://docs.google.com/spreadsheets/d/1kQK__iD1VYhOJdJbGseZtMhdCnsWMFscFp1kv33EjqM/edit?usp=sharing';
 
 /* ── OpenAI models ──────────────────────────────────────────────── */
 const OPENAI_MODELS = [
@@ -547,7 +551,7 @@ function SheetHistoryTab() {
 /* ══ Main ═══════════════════════════════════════════════════════════ */
 export default function SheetGeneratorOpenAI() {
   const navigate = useNavigate();
-  const [scriptUrl, setScriptUrl]   = useState(() => localStorage.getItem(STORAGE_KEY) || '');
+  const [scriptUrl, setScriptUrl]   = useState(() => localStorage.getItem(STORAGE_KEY) || DEFAULT_SCRIPT_URL);
   const [activeTab, setActiveTab]   = useState<ActiveTab>('generator');
   const [sheetRows, setSheetRows]   = useState<SheetRow[]>([]);
   const [fetching, setFetching]     = useState(false);
@@ -787,6 +791,10 @@ export default function SheetGeneratorOpenAI() {
         </div>
         <div className="flex items-center gap-3">
           <ModelSelector model={selectedModel} onChange={handleModelChange} />
+          <a href={SHEET_URL} target="_blank" rel="noopener noreferrer"
+            className="hidden sm:flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-200 transition-colors">
+            <ExternalLink className="h-3.5 w-3.5" />View Sheet
+          </a>
           <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />Connected
           </span>
@@ -802,22 +810,39 @@ export default function SheetGeneratorOpenAI() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
           <div className="w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0e0e1a] p-6 shadow-2xl">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-black text-white">Update Script URL</h3>
+              <h3 className="text-base font-black text-white">Settings</h3>
               <button onClick={() => setShowSettings(false)} className="text-slate-600 hover:text-slate-300 transition-colors"><X className="h-5 w-5" /></button>
             </div>
-            <p className="mb-4 text-xs text-amber-400/80 flex items-start gap-2">
+
+            {/* Sheet link */}
+            <div className="mb-5 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
+              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Google Sheet</p>
+              <a href={SHEET_URL} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors break-all">
+                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                {SHEET_URL}
+              </a>
+            </div>
+
+            {/* Current deployment URL */}
+            <div className="mb-5 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
+              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Apps Script Deployment URL</p>
+              <p className="text-[11px] text-slate-500 break-all font-mono leading-relaxed">{scriptUrl}</p>
+            </div>
+
+            <p className="mb-3 text-xs text-amber-400/80 flex items-start gap-2">
               <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              If you updated the Apps Script, re-deploy it and paste the new URL here.
+              Only update if you re-deployed the Apps Script and the URL changed.
             </p>
             <input value={newUrl} onChange={e => setNewUrl(e.target.value)}
               placeholder="https://script.google.com/macros/s/..."
               className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-slate-200 placeholder-slate-700 outline-none focus:border-sky-500/50 mb-4 transition-colors" />
             <div className="flex gap-3">
               <button onClick={() => setShowSettings(false)} className="flex-1 rounded-xl border border-white/[0.08] py-2.5 text-sm font-bold text-slate-500 hover:text-slate-300 transition-colors">Cancel</button>
-              <button onClick={saveUrl} disabled={savingUrl}
+              <button onClick={saveUrl} disabled={savingUrl || !newUrl.trim()}
                 className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-sky-600 py-2.5 text-sm font-black text-white hover:bg-sky-500 disabled:opacity-40 transition-colors">
                 {savingUrl && <Loader2 className="h-4 w-4 animate-spin" />}
-                {savingUrl ? 'Testing…' : 'Save'}
+                {savingUrl ? 'Testing…' : 'Update URL'}
               </button>
             </div>
           </div>
@@ -858,12 +883,17 @@ export default function SheetGeneratorOpenAI() {
               ))}
             </div>
 
-            {/* Model indicator */}
-            <div className="mb-5 flex items-center gap-2 rounded-xl border border-sky-500/15 bg-sky-500/[0.06] px-4 py-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
-              <span className="text-xs font-semibold text-slate-500">Articles will be generated with</span>
-              <span className="text-xs font-black text-sky-400">{OPENAI_MODELS.find(m => m.id === selectedModel)?.label}</span>
-              <span className="text-xs text-slate-700">· Change model in the header dropdown</span>
+            {/* Model + sheet indicator */}
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-500/15 bg-sky-500/[0.06] px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <span className="h-1.5 w-1.5 rounded-full bg-sky-400 animate-pulse" />
+                <span className="text-xs font-semibold text-slate-500">Generating with</span>
+                <span className="text-xs font-black text-sky-400">{OPENAI_MODELS.find(m => m.id === selectedModel)?.label}</span>
+              </div>
+              <a href={SHEET_URL} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-sky-400 transition-colors">
+                <ExternalLink className="h-3 w-3" />Open Google Sheet
+              </a>
             </div>
 
             {/* Actions */}
