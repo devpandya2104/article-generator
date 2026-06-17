@@ -22,6 +22,12 @@ const TITLE_HIGHLIGHT_COLOR = '#e0f2fe';
 const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzHy9o-ZV2DFwDyB15iv5x6V12e_ZUjjj4jpc3zL5qhzua3K-2KEm117Wbf0AP5zHM-/exec';
 const SHEET_URL          = 'https://docs.google.com/spreadsheets/d/1kQK__iD1VYhOJdJbGseZtMhdCnsWMFscFp1kv33EjqM/edit?usp=sharing';
 
+/* ── Admin users (can edit prompts) ────────────────────────────── */
+const ADMIN_UIDS = new Set([
+  '62088ba7-48d4-42dc-9796-194f7a0bc528', // dev.p@amrytt.com
+  'e7a39152-5c7b-4046-8fc1-40adf330bd75', // shreya.s@amrytt.com
+]);
+
 /* ── OpenAI models ──────────────────────────────────────────────── */
 const OPENAI_MODELS = [
   { id: 'gpt-5.4-mini',  label: 'GPT-5.4 Mini',  desc: '★ Recommended — ~$0.01/article' },
@@ -627,8 +633,12 @@ export default function SheetGeneratorOpenAI() {
   const [selectedModel, setSelectedModel] = useState<OpenAIModelId>(
     () => (localStorage.getItem(MODEL_KEY) as OpenAIModelId) || 'gpt-5.4-mini'
   );
+  const [titlePrompt, setTitlePrompt]     = useState('');
+  const [articlePrompt, setArticlePrompt] = useState('');
+  const [savingPrompts, setSavingPrompts] = useState(false);
   const abortRef = useRef(false);
   const isLoggedIn = !!session;
+  const isAdmin    = isLoggedIn && ADMIN_UIDS.has(session?.user?.id ?? '');
 
   const pending  = sheetRows.filter(r => { const s = r['Status']?.trim().toLowerCase(); return !s || s === '' || s === 'processing'; });
   const doneRows = sheetRows.filter(r => r['Status']?.toLowerCase().includes('complet'));
@@ -646,6 +656,29 @@ export default function SheetGeneratorOpenAI() {
   }, []);
 
   const signOut = async () => { await supabase.auth.signOut(); };
+
+  /* ── Load prompts from Supabase ── */
+  useEffect(() => {
+    supabase.from('app_settings')
+      .select('key, value')
+      .in('key', ['sheet_openai_title_prompt', 'sheet_openai_article_prompt'])
+      .then(({ data }) => {
+        data?.forEach(row => {
+          if (row.key === 'sheet_openai_title_prompt')   setTitlePrompt(row.value);
+          if (row.key === 'sheet_openai_article_prompt') setArticlePrompt(row.value);
+        });
+      });
+  }, []);
+
+  const savePrompts = async () => {
+    setSavingPrompts(true);
+    try {
+      await supabase.from('app_settings').upsert([
+        { key: 'sheet_openai_title_prompt',   value: titlePrompt,   updated_at: new Date().toISOString(), updated_by: session?.user?.email },
+        { key: 'sheet_openai_article_prompt', value: articlePrompt, updated_at: new Date().toISOString(), updated_by: session?.user?.email },
+      ]);
+    } finally { setSavingPrompts(false); }
+  };
 
   /* ── Persist model selection ── */
   const handleModelChange = (m: OpenAIModelId) => {
@@ -736,6 +769,7 @@ export default function SheetGeneratorOpenAI() {
             upd(rid, { procStatus: 'title' });
             const res = await edgeFetch<{ titles: string[] }>('generate-titles-openai', {
               topic: DEFAULT_TOPIC, count: 1, model, language: row['Language']?.trim() || 'English',
+              ...(titlePrompt ? { titlePrompt } : {}),
             });
             title = res.titles[0] || `${DEFAULT_TOPIC} Guide`;
             upd(rid, { finalTitle: title });
@@ -758,6 +792,7 @@ export default function SheetGeneratorOpenAI() {
           upd(rid, { procStatus: 'article' });
           const artData = await edgeFetch<{ html: string }>('generate-article-openai', {
             title, anchors, minWordCount, maxWordCount, language, model,
+            ...(articlePrompt ? { articlePrompt } : {}),
           });
           const wc = countWords(artData.html);
 
@@ -897,42 +932,121 @@ export default function SheetGeneratorOpenAI() {
 
       {/* ── Settings modal ── */}
       {showSettings && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
-          <div className="w-full max-w-md rounded-2xl border border-white/[0.1] bg-[#0e0e1a] p-6 shadow-2xl">
-            <div className="flex items-center justify-between mb-5">
-              <h3 className="text-base font-black text-white">Settings</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8">
+          <div className="w-full max-w-2xl max-h-full overflow-y-auto rounded-2xl border border-white/[0.1] bg-[#0e0e1a] shadow-2xl">
+            <div className="sticky top-0 z-10 flex items-center justify-between bg-[#0e0e1a] border-b border-white/[0.07] px-6 py-4">
+              <div>
+                <h3 className="text-base font-black text-white">Settings</h3>
+                {!isAdmin && (
+                  <p className="text-[10px] text-slate-500 mt-0.5">Prompts are view-only for your account</p>
+                )}
+              </div>
               <button onClick={() => setShowSettings(false)} className="text-slate-600 hover:text-slate-300 transition-colors"><X className="h-5 w-5" /></button>
             </div>
 
-            {/* Sheet link */}
-            <div className="mb-5 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
-              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Google Sheet</p>
-              <a href={SHEET_URL} target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-2 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors break-all">
-                <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-                {SHEET_URL}
-              </a>
+            <div className="p-6 space-y-6">
+              {/* Sheet link */}
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
+                <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Google Sheet</p>
+                <a href={SHEET_URL} target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-2 text-xs font-semibold text-sky-400 hover:text-sky-300 transition-colors break-all">
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />{SHEET_URL}
+                </a>
+              </div>
+
+              {/* Apps Script URL — admin only for editing */}
+              <div className="rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
+                <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Apps Script Deployment URL</p>
+                <p className="text-[11px] text-slate-500 break-all font-mono leading-relaxed mb-3">{scriptUrl}</p>
+                {isAdmin && (
+                  <>
+                    <p className="mb-2 text-xs text-amber-400/80 flex items-start gap-2">
+                      <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                      Only update if you re-deployed the Apps Script and the URL changed.
+                    </p>
+                    <div className="flex gap-3">
+                      <input value={newUrl} onChange={e => setNewUrl(e.target.value)}
+                        placeholder="https://script.google.com/macros/s/..."
+                        className="min-w-0 flex-1 rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-2.5 text-sm text-slate-200 placeholder-slate-700 outline-none focus:border-sky-500/50 transition-colors" />
+                      <button onClick={saveUrl} disabled={savingUrl || !newUrl.trim()}
+                        className="flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-black text-white hover:bg-sky-500 disabled:opacity-40 transition-colors whitespace-nowrap">
+                        {savingUrl ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                        {savingUrl ? 'Testing…' : 'Update URL'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* ── Prompts section ── */}
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <h4 className="text-sm font-black text-white">Generation Prompts</h4>
+                  {isAdmin ? (
+                    <span className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-black text-emerald-400">Admin — can edit</span>
+                  ) : (
+                    <span className="rounded-md border border-slate-600/40 bg-slate-800/40 px-2 py-0.5 text-[10px] font-black text-slate-500">View only</span>
+                  )}
+                </div>
+
+                {/* Title prompt */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Title Generation Prompt</label>
+                    {!isAdmin && <span className="text-[10px] text-slate-600">read-only</span>}
+                  </div>
+                  <textarea
+                    value={titlePrompt}
+                    onChange={isAdmin ? e => setTitlePrompt(e.target.value) : undefined}
+                    readOnly={!isAdmin}
+                    rows={6}
+                    placeholder={isAdmin ? 'Leave blank to use the default title prompt…' : 'No custom prompt set — using default.'}
+                    className={`w-full rounded-xl border px-4 py-3 text-sm font-mono leading-relaxed placeholder-slate-700 outline-none resize-y transition-colors ${
+                      isAdmin
+                        ? 'border-white/[0.08] bg-white/[0.04] text-slate-200 focus:border-sky-500/50'
+                        : 'border-white/[0.05] bg-white/[0.02] text-slate-400 cursor-default select-text'
+                    }`}
+                  />
+                </div>
+
+                {/* Article prompt */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Article Generation Prompt</label>
+                    {!isAdmin && <span className="text-[10px] text-slate-600">read-only</span>}
+                  </div>
+                  <textarea
+                    value={articlePrompt}
+                    onChange={isAdmin ? e => setArticlePrompt(e.target.value) : undefined}
+                    readOnly={!isAdmin}
+                    rows={10}
+                    placeholder={isAdmin ? 'Leave blank to use the default article prompt…' : 'No custom prompt set — using default.'}
+                    className={`w-full rounded-xl border px-4 py-3 text-sm font-mono leading-relaxed placeholder-slate-700 outline-none resize-y transition-colors ${
+                      isAdmin
+                        ? 'border-white/[0.08] bg-white/[0.04] text-slate-200 focus:border-sky-500/50'
+                        : 'border-white/[0.05] bg-white/[0.02] text-slate-400 cursor-default select-text'
+                    }`}
+                  />
+                </div>
+
+                {isAdmin && (
+                  <div className="flex items-center gap-3 pt-1">
+                    <p className="flex-1 text-xs text-slate-600">Prompts support <code className="text-sky-600">{'{title}'}</code>, <code className="text-sky-600">{'{language}'}</code>, <code className="text-sky-600">{'{minWordCount}'}</code>, <code className="text-sky-600">{'{maxWordCount}'}</code>, <code className="text-sky-600">{'{anchors}'}</code> placeholders.</p>
+                    <button onClick={savePrompts} disabled={savingPrompts}
+                      className="flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-black text-white hover:bg-sky-500 disabled:opacity-40 transition-colors whitespace-nowrap"
+                      style={{ boxShadow: '0 0 16px rgba(14,165,233,0.3)' }}>
+                      {savingPrompts ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      {savingPrompts ? 'Saving…' : 'Save Prompts'}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Current deployment URL */}
-            <div className="mb-5 rounded-xl border border-white/[0.07] bg-white/[0.03] p-4">
-              <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-slate-500">Apps Script Deployment URL</p>
-              <p className="text-[11px] text-slate-500 break-all font-mono leading-relaxed">{scriptUrl}</p>
-            </div>
-
-            <p className="mb-3 text-xs text-amber-400/80 flex items-start gap-2">
-              <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-              Only update if you re-deployed the Apps Script and the URL changed.
-            </p>
-            <input value={newUrl} onChange={e => setNewUrl(e.target.value)}
-              placeholder="https://script.google.com/macros/s/..."
-              className="w-full rounded-xl border border-white/[0.08] bg-white/[0.04] px-4 py-3 text-sm text-slate-200 placeholder-slate-700 outline-none focus:border-sky-500/50 mb-4 transition-colors" />
-            <div className="flex gap-3">
-              <button onClick={() => setShowSettings(false)} className="flex-1 rounded-xl border border-white/[0.08] py-2.5 text-sm font-bold text-slate-500 hover:text-slate-300 transition-colors">Cancel</button>
-              <button onClick={saveUrl} disabled={savingUrl || !newUrl.trim()}
-                className="flex-1 flex items-center justify-center gap-2 rounded-xl bg-sky-600 py-2.5 text-sm font-black text-white hover:bg-sky-500 disabled:opacity-40 transition-colors">
-                {savingUrl && <Loader2 className="h-4 w-4 animate-spin" />}
-                {savingUrl ? 'Testing…' : 'Update URL'}
+            <div className="sticky bottom-0 border-t border-white/[0.07] bg-[#0e0e1a] px-6 py-4">
+              <button onClick={() => setShowSettings(false)}
+                className="w-full rounded-xl border border-white/[0.08] py-2.5 text-sm font-bold text-slate-500 hover:text-slate-300 transition-colors">
+                Close
               </button>
             </div>
           </div>
