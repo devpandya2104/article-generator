@@ -13,6 +13,17 @@ import {
 import { supabase } from '../lib/supabase';
 import CustomCursor from '../components/CustomCursor';
 
+const OPENAI_MODELS = [
+  { id: 'gpt-5.4-mini',  label: 'GPT-5.4 Mini',  desc: '★ Recommended'   },
+  { id: 'gpt-5.4-nano',  label: 'GPT-5.4 Nano',  desc: 'Cheapest'        },
+  { id: 'gpt-5.4',       label: 'GPT-5.4',        desc: 'Higher quality'  },
+  { id: 'gpt-5.5',       label: 'GPT-5.5',        desc: 'Flagship'        },
+  { id: 'gpt-5.5-pro',   label: 'GPT-5.5 Pro',   desc: 'Max capability'  },
+  { id: 'gpt-5.4-pro',   label: 'GPT-5.4 Pro',   desc: 'Pro tier'        },
+] as const;
+type OpenAIModelId = (typeof OPENAI_MODELS)[number]['id'];
+const OPENAI_MODEL_KEY = 'article_gen_openai_model';
+
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const ANON_KEY    = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
@@ -183,6 +194,7 @@ export default function ArticleGenerator() {
   const [minWordCount, setMinWordCount]   = useState(1000);
   const [maxWordCount, setMaxWordCount]   = useState(1300);
   const [language, setLanguage]           = useState('English');
+  const [openaiModel, setOpenaiModel]     = useState<OpenAIModelId>(() => (localStorage.getItem(OPENAI_MODEL_KEY) as OpenAIModelId) || 'gpt-5.4-mini');
   const [anchors, setAnchors]             = useState<Anchor[]>([]);
   const [titlePrompt, setTitlePrompt]     = useState(DEFAULT_TITLE_PROMPT);
   const [articlePrompt, setArticlePrompt] = useState(DEFAULT_ARTICLE_PROMPT);
@@ -444,12 +456,12 @@ export default function ArticleGenerator() {
     if (!topic.trim()) return;
     setError(null); setLoadingTitles(true);
     try {
-      const data = await edgeFetch<{ titles: string[] }>('generate-titles', { topic: topic.trim(), count, titlePrompt, language });
+      const data = await edgeFetch<{ titles: string[] }>('generate-titles-openai', { topic: topic.trim(), count, titlePrompt, language, model: openaiModel });
       setTitles(data.titles); setStep('titles');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate titles');
     } finally { setLoadingTitles(false); }
-  }, [topic, count, titlePrompt]);
+  }, [topic, count, titlePrompt, language, openaiModel]);
 
   const removeTitle  = useCallback((idx: number) => setTitles(p => p.filter((_,i) => i!==idx)), []);
   const startEditing = useCallback((idx: number, t: string) => { setEditingIndex(idx); setEditValue(t); }, []);
@@ -501,9 +513,9 @@ export default function ArticleGenerator() {
         const artStart = Date.now();
         updateArticle(i, { status: 'generating', startTime: artStart });
         try {
-          const artData = await edgeFetch<{ html: string }>('generate-article', {
+          const artData = await edgeFetch<{ html: string }>('generate-article-openai', {
             title: titles[i], topic: topic.trim(), minWordCount, maxWordCount,
-            language, anchors: validAnchors, articlePrompt,
+            language, anchors: validAnchors, articlePrompt, model: openaiModel,
           });
           if (abortRef.current) return;
           const wc = countWords(artData.html);
@@ -539,7 +551,7 @@ export default function ArticleGenerator() {
         .eq('id', currentBatchId);
     }
     setStep('done');
-  }, [titles, topic, batchId, updateArticle, minWordCount, maxWordCount, language, validAnchors, articlePrompt, isCustomArticlePrompt, titlePrompt, isCustomTitlePrompt]);
+  }, [titles, topic, batchId, updateArticle, minWordCount, maxWordCount, language, validAnchors, articlePrompt, isCustomArticlePrompt, titlePrompt, isCustomTitlePrompt, openaiModel]);
 
   const retryArticle = useCallback(async (idx: number) => {
     const article = articles[idx];
@@ -547,7 +559,7 @@ export default function ArticleGenerator() {
     const artStart = Date.now();
     updateArticle(idx, { status: 'generating', error: undefined, startTime: artStart, endTime: undefined });
     try {
-      const artData = await edgeFetch<{ html: string }>('generate-article', { title: article.title, topic: topic.trim(), minWordCount, maxWordCount, language, anchors: validAnchors, articlePrompt });
+      const artData = await edgeFetch<{ html: string }>('generate-article-openai', { title: article.title, topic: topic.trim(), minWordCount, maxWordCount, language, anchors: validAnchors, articlePrompt, model: openaiModel });
       const wc = countWords(artData.html);
       updateArticle(idx, { status: 'uploading', bodyHtml: artData.html, wordCount: wc });
       const docData = await edgeFetch<{ googleDocId: string; googleDocUrl: string }>('create-article-doc', { title: article.title, bodyHtml: artData.html, topic: topic.trim() });
@@ -557,7 +569,7 @@ export default function ArticleGenerator() {
     } catch (err) {
       updateArticle(idx, { status: 'failed', error: err instanceof Error ? err.message : 'Unknown error', endTime: Date.now() });
     }
-  }, [articles, topic, updateArticle, minWordCount, maxWordCount, language, validAnchors, articlePrompt]);
+  }, [articles, topic, updateArticle, minWordCount, maxWordCount, language, validAnchors, articlePrompt, openaiModel]);
 
   const doneArticles   = useMemo(() => articles.filter(a => a.status === 'done' && a.googleDocUrl), [articles]);
   const progressCounts = useMemo(() => ({
@@ -879,6 +891,18 @@ export default function ArticleGenerator() {
                       <div>
                         <label className={labelCls}>Language</label>
                         <LanguageSelect value={language} onChange={setLanguage} />
+                      </div>
+                      <div>
+                        <label className={labelCls}>AI Model</label>
+                        <select
+                          value={openaiModel}
+                          onChange={e => { const m = e.target.value as OpenAIModelId; setOpenaiModel(m); localStorage.setItem(OPENAI_MODEL_KEY, m); }}
+                          className="h-10 w-full rounded-xl border border-white/[0.08] bg-[#0d0d1a] px-3 text-sm text-slate-200 outline-none focus:border-violet-500/50 transition-colors cursor-pointer"
+                        >
+                          {OPENAI_MODELS.map(m => (
+                            <option key={m.id} value={m.id}>{m.label} — {m.desc}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
 
