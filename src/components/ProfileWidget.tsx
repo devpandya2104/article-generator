@@ -58,14 +58,16 @@ export default function ProfileWidget() {
 
   return (
     <>
-      {/* ── Floating trigger button ── */}
+      {/* ── Inline header trigger ── */}
       <button
         onClick={() => setOpen(true)}
         title={email}
-        className="fixed bottom-6 right-6 z-40 flex h-10 w-10 items-center justify-center rounded-full border border-white/[0.15] bg-[#0e0e1a] text-sm font-black text-slate-300 shadow-lg backdrop-blur transition-all hover:border-violet-500/40 hover:text-white hover:shadow-[0_0_20px_rgba(139,92,246,0.3)]"
-        style={{ boxShadow: '0 2px 16px rgba(0,0,0,0.5)' }}
+        className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-3 py-2 text-sm font-black text-slate-300 backdrop-blur transition-all hover:border-violet-500/40 hover:bg-violet-500/[0.07] hover:text-white"
       >
-        {initials}
+        <span className="flex h-6 w-6 items-center justify-center rounded-full border border-violet-500/40 bg-violet-500/15 text-xs font-black text-violet-300">
+          {initials}
+        </span>
+        <span className="hidden sm:block text-xs font-bold text-slate-400 max-w-[120px] truncate">{email}</span>
       </button>
 
       {/* ── Modal ── */}

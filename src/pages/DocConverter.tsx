@@ -5,6 +5,7 @@ import {
   ExternalLink, X, Loader2, AlertCircle, CheckCircle2,
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
+import ProfileWidget from '../components/ProfileWidget';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const ANON_KEY     = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -128,11 +129,19 @@ export default function DocConverter() {
           }} />
       </div>
 
-      {/* Back button */}
-      <button onClick={() => navigate('/')}
-        className="fixed left-6 top-5 z-40 flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-500 backdrop-blur-md transition-colors hover:text-slate-300">
-        <ChevronLeft className="h-3.5 w-3.5" />Dashboard
-      </button>
+      {/* Header */}
+      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between border-b border-white/[0.05] bg-[#04040a]/80 px-8 py-4 backdrop-blur-xl">
+        <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-300 transition-colors">
+          <ChevronLeft className="h-3.5 w-3.5" />Dashboard
+        </button>
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-400 to-indigo-600">
+            <FileText className="h-3.5 w-3.5 text-white" />
+          </div>
+          <span className="text-sm font-black text-white">Doc Converter</span>
+        </div>
+        <ProfileWidget />
+      </header>
 
       <div className="relative z-10 mx-auto max-w-2xl px-6 py-24">
 

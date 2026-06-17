@@ -6,9 +6,10 @@ import LocomotiveScroll from 'locomotive-scroll';
 import 'locomotive-scroll/dist/locomotive-scroll.css';
 import {
   Sparkles, Calendar, Globe, Search, Layers,
-  ArrowRight, Zap, Sheet, FileText,
+  ArrowRight, Zap, Sheet, FileText, LogIn,
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
+import ProfileWidget from '../components/ProfileWidget';
 import { useAuth } from '../contexts/AuthContext';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -170,7 +171,7 @@ export default function Dashboard() {
   const locoRef  = useRef<LocomotiveScroll | null>(null);
   const navigate = useNavigate();
   const heroRef  = useRef<HTMLElement>(null);
-  const { isAdmin } = useAuth();
+  const { isAdmin, isLoggedIn } = useAuth();
   const visibleTools = TOOLS.filter(t => !('adminOnly' in t && t.adminOnly && !isAdmin));
 
   useEffect(() => {
@@ -302,14 +303,24 @@ export default function Dashboard() {
           </div>
           <span className="text-[15px] font-black tracking-tight text-white">ContentForge</span>
         </div>
-        <nav className="relative flex items-center gap-7">
+        <nav className="relative flex items-center gap-4">
           <button onClick={scrollToTools} className="text-[13px] font-semibold text-slate-500 hover:text-slate-200 transition-colors">Tools</button>
           <button onClick={() => navigate('/article-generator')} className="text-[13px] font-semibold text-slate-500 hover:text-slate-200 transition-colors">Generator</button>
-          <button onClick={() => navigate('/article-generator')}
-            className="rounded-xl px-5 py-2 text-[13px] font-black text-white transition-all hover:-translate-y-px"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #c026d3)', boxShadow: '0 0 24px rgba(124,58,237,0.5)' }}>
-            Get Started
-          </button>
+          {isLoggedIn ? (
+            <ProfileWidget />
+          ) : (
+            <>
+              <button onClick={() => navigate('/article-generator')}
+                className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2 text-[13px] font-black text-slate-300 transition-all hover:border-violet-500/40 hover:bg-violet-500/[0.07] hover:text-white">
+                <LogIn className="h-3.5 w-3.5" />Sign In
+              </button>
+              <button onClick={() => navigate('/article-generator')}
+                className="rounded-xl px-5 py-2 text-[13px] font-black text-white transition-all hover:-translate-y-px"
+                style={{ background: 'linear-gradient(135deg, #7c3aed, #c026d3)', boxShadow: '0 0 24px rgba(124,58,237,0.5)' }}>
+                Get Started
+              </button>
+            </>
+          )}
         </nav>
       </header>
 

@@ -8,6 +8,7 @@ import {
   History, LayoutGrid,
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
+import ProfileWidget from '../components/ProfileWidget';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -762,6 +763,7 @@ export default function SheetGenerator() {
             className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-200 transition-colors">
             <Settings2 className="h-3.5 w-3.5" />Settings
           </button>
+          <ProfileWidget />
         </div>
       </header>
 

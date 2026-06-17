@@ -8,8 +8,10 @@ import {
   History, LayoutGrid, ChevronDown, User,
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
+import ProfileWidget from '../components/ProfileWidget';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { DEFAULT_TITLE_PROMPT, DEFAULT_ARTICLE_PROMPT } from '../constants/prompts';
 
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const ANON_KEY      = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -572,8 +574,8 @@ export default function SheetGeneratorOpenAI() {
   const [selectedModel, setSelectedModel] = useState<OpenAIModelId>(
     () => (localStorage.getItem(MODEL_KEY) as OpenAIModelId) || 'gpt-5.4-mini'
   );
-  const [titlePrompt, setTitlePrompt]     = useState('');
-  const [articlePrompt, setArticlePrompt] = useState('');
+  const [titlePrompt, setTitlePrompt]     = useState(DEFAULT_TITLE_PROMPT);
+  const [articlePrompt, setArticlePrompt] = useState(DEFAULT_ARTICLE_PROMPT);
   const [savingPrompts, setSavingPrompts] = useState(false);
   const abortRef = useRef(false);
 
@@ -592,8 +594,8 @@ export default function SheetGeneratorOpenAI() {
       .in('key', ['sheet_openai_title_prompt', 'sheet_openai_article_prompt'])
       .then(({ data }) => {
         data?.forEach(row => {
-          if (row.key === 'sheet_openai_title_prompt')   setTitlePrompt(row.value);
-          if (row.key === 'sheet_openai_article_prompt') setArticlePrompt(row.value);
+          if (row.key === 'sheet_openai_title_prompt'   && row.value) setTitlePrompt(row.value);
+          if (row.key === 'sheet_openai_article_prompt' && row.value) setArticlePrompt(row.value);
         });
       });
   }, []);
@@ -835,10 +837,7 @@ export default function SheetGeneratorOpenAI() {
             className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-200 transition-colors">
             <Settings2 className="h-3.5 w-3.5" />Settings
           </button>
-          <div className="flex items-center gap-1.5 rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-2">
-            <User className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-            <span className="hidden sm:block text-xs font-bold text-sky-300 max-w-[140px] truncate">{session?.user?.email}</span>
-          </div>
+          <ProfileWidget />
         </div>
       </header>
 
