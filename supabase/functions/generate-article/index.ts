@@ -119,13 +119,18 @@ Deno.serve(async (req: Request) => {
     }
 
     const template = customPrompt || DEFAULT_ARTICLE_TEMPLATE;
-    const userPrompt = template
+    let userPrompt = template
       .replace(/\{title\}/g, title)
       .replace(/\{wordCount\}/g, `${minWords}-${maxWords}`)
       .replace(/\{minWordCount\}/g, String(minWords))
       .replace(/\{maxWordCount\}/g, String(maxWords))
       .replace(/\{language\}/g, language)
       .replace(/\{anchors\}/g, buildAnchorInstructions(anchors));
+
+    // Guarantee language even when custom prompt omits {language}
+    if (language && language.toLowerCase() !== "english") {
+      userPrompt += `\n\nCRITICAL: The entire article MUST be written in ${language}. Do not write any sentence in English or any other language.`;
+    }
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",

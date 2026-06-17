@@ -55,10 +55,15 @@ best, buy, top, RTP, random, randomness, random numbers, cost, price, cheap, aff
 
 Return ONLY a JSON array of strings. Example: ["Title One", "Title Two"]`;
 
-    const prompt = template
+    let prompt = template
       .replace(/\{topic\}/g, topic)
       .replace(/\{count\}/g, String(count))
       .replace(/\{language\}/g, language);
+
+    // Always enforce language at the end so custom prompts without {language} still work
+    if (language && language.toLowerCase() !== "english") {
+      prompt += `\n\nCRITICAL: Every title MUST be written in ${language}. Do not write any title in English or any other language. All ${count} titles must be in ${language}.`;
+    }
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
