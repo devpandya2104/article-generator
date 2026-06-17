@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LogIn, Loader2, AlertCircle, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import ProfileWidget from './ProfileWidget';
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, signIn } = useAuth();
@@ -9,7 +10,12 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState('');
 
-  if (isLoggedIn) return <>{children}</>;
+  if (isLoggedIn) return (
+    <>
+      {children}
+      <ProfileWidget />
+    </>
+  );
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();

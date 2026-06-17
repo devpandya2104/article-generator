@@ -5,7 +5,7 @@ import {
   ChevronLeft, RefreshCw, Play, CheckCircle2, AlertCircle,
   Loader2, ExternalLink, Copy, Check, Clock, Zap, Link2,
   Settings2, X, FileText, Globe, Hash, Sparkles, Sheet,
-  History, LayoutGrid, ChevronDown, LogOut, User,
+  History, LayoutGrid, ChevronDown, User,
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
 import { supabase } from '../lib/supabase';
@@ -558,7 +558,7 @@ function SheetHistoryTab() {
 /* ══ Main ═══════════════════════════════════════════════════════════ */
 export default function SheetGeneratorOpenAI() {
   const navigate = useNavigate();
-  const { session, isLoggedIn, isAdmin, signOut } = useAuth();
+  const { session, isLoggedIn, isAdmin } = useAuth();
   const [scriptUrl, setScriptUrl]   = useState(() => localStorage.getItem(STORAGE_KEY) || DEFAULT_SCRIPT_URL);
   const [activeTab, setActiveTab]   = useState<ActiveTab>('generator');
   const [sheetRows, setSheetRows]   = useState<SheetRow[]>([]);
@@ -835,13 +835,9 @@ export default function SheetGeneratorOpenAI() {
             className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-500 hover:text-slate-200 transition-colors">
             <Settings2 className="h-3.5 w-3.5" />Settings
           </button>
-          <div className="flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-2">
+          <div className="flex items-center gap-1.5 rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-2">
             <User className="h-3.5 w-3.5 text-sky-400 shrink-0" />
-            <span className="hidden sm:block text-xs font-bold text-sky-300 max-w-[120px] truncate">{session?.user?.email}</span>
-            <button onClick={signOut} title="Sign out"
-              className="ml-1 text-slate-500 hover:text-red-400 transition-colors">
-              <LogOut className="h-3.5 w-3.5" />
-            </button>
+            <span className="hidden sm:block text-xs font-bold text-sky-300 max-w-[140px] truncate">{session?.user?.email}</span>
           </div>
         </div>
       </header>
