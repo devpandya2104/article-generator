@@ -665,7 +665,7 @@ export default function SheetGeneratorOpenAI() {
           if (needTitle) {
             upd(rid, { procStatus: 'title' });
             const res = await edgeFetch<{ titles: string[] }>('generate-titles-openai', {
-              topic: DEFAULT_TOPIC, count: 1, model,
+              topic: DEFAULT_TOPIC, count: 1, model, language: row['Language']?.trim() || 'English',
             });
             title = res.titles[0] || `${DEFAULT_TOPIC} Guide`;
             upd(rid, { finalTitle: title });

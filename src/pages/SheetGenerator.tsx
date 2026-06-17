@@ -626,7 +626,7 @@ export default function SheetGenerator() {
           if (needTitle) {
             upd(rid, { procStatus: 'title' });
             const res = await edgeFetch<{ titles: string[] }>('generate-titles', {
-              topic: DEFAULT_TOPIC, count: 1,
+              topic: DEFAULT_TOPIC, count: 1, language: row['Language']?.trim() || 'English',
             });
             title = res.titles[0] || `${DEFAULT_TOPIC} Guide`;
             upd(rid, { finalTitle: title });

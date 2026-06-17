@@ -21,6 +21,7 @@ Deno.serve(async (req: Request) => {
     const topic: string = body.topic;
     const count: number = body.count;
     const model: string = body.model || "gpt-5.4-mini";
+    const language: string = body.language || "English";
     const customPrompt: string = body.titlePrompt || "";
 
     if (!topic || !count || count < 1 || count > 200) {
@@ -30,9 +31,10 @@ Deno.serve(async (req: Request) => {
     const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) return json(500, { error: "OPENAI_API_KEY not configured." });
 
-    const template = customPrompt || `Generate exactly {count} unique, informative article titles about "{topic}".
+    const template = customPrompt || `Generate exactly {count} unique, informative article titles about "{topic}". Write all titles in {language}.
 
 Requirements:
+- All titles MUST be written in {language} — not English unless {language} is English
 - No brand or company names
 - No product names
 - No location names
@@ -46,7 +48,10 @@ best, buy, top, RTP, random, randomness, random numbers, cost, price, cheap, aff
 
 Return ONLY a JSON array of strings. Example: ["Title One", "Title Two"]`;
 
-    const prompt = template.replace(/\{topic\}/g, topic).replace(/\{count\}/g, String(count));
+    const prompt = template
+      .replace(/\{topic\}/g, topic)
+      .replace(/\{count\}/g, String(count))
+      .replace(/\{language\}/g, language);
 
     const isReasoningModel = /^o\d/.test(model);
     const systemContent =

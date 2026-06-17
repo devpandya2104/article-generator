@@ -444,7 +444,7 @@ export default function ArticleGenerator() {
     if (!topic.trim()) return;
     setError(null); setLoadingTitles(true);
     try {
-      const data = await edgeFetch<{ titles: string[] }>('generate-titles', { topic: topic.trim(), count, titlePrompt });
+      const data = await edgeFetch<{ titles: string[] }>('generate-titles', { topic: topic.trim(), count, titlePrompt, language });
       setTitles(data.titles); setStep('titles');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate titles');

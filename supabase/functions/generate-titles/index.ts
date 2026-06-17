@@ -26,6 +26,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     const topic: string = body.topic;
     const count: number = body.count;
+    const language: string = body.language || "English";
     const customPrompt: string = body.titlePrompt || "";
 
     if (!topic || !count || count < 1 || count > 200) {
@@ -37,9 +38,10 @@ Deno.serve(async (req: Request) => {
       return json(500, { error: "ANTHROPIC_API_KEY not configured." });
     }
 
-    const template = customPrompt || `Generate exactly {count} unique, informative article titles about "{topic}".
+    const template = customPrompt || `Generate exactly {count} unique, informative article titles about "{topic}". Write all titles in {language}.
 
 Requirements:
+- All titles MUST be written in {language} — not English unless {language} is English
 - No brand or company names
 - No product names
 - No location names
@@ -55,7 +57,8 @@ Return ONLY a JSON array of strings. Example: ["Title One", "Title Two"]`;
 
     const prompt = template
       .replace(/\{topic\}/g, topic)
-      .replace(/\{count\}/g, String(count));
+      .replace(/\{count\}/g, String(count))
+      .replace(/\{language\}/g, language);
 
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
