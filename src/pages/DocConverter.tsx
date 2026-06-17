@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
 import ProfileWidget from '../components/ProfileWidget';
+import Sidebar from '../components/Sidebar';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const ANON_KEY     = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -111,7 +112,8 @@ export default function DocConverter() {
   const pendingCount    = queuedCount + failedCount;
 
   return (
-    <div className="min-h-screen bg-[#050508] text-slate-100">
+    <div className="min-h-screen bg-[#050508] text-slate-100 pl-48">
+      <Sidebar />
       <CustomCursor />
 
       {/* Background — violet only, no blue */}
@@ -130,7 +132,7 @@ export default function DocConverter() {
       </div>
 
       {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between border-b border-white/[0.05] bg-[#04040a]/80 px-8 py-4 backdrop-blur-xl">
+      <header className="fixed top-0 left-48 right-0 z-40 flex items-center justify-between border-b border-white/[0.05] bg-[#04040a]/80 px-8 py-4 backdrop-blur-xl">
         <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-300 transition-colors">
           <ChevronLeft className="h-3.5 w-3.5" />Dashboard
         </button>

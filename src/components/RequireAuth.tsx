@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { LogIn, Loader2, AlertCircle, Zap } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function RequireAuth({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, signIn } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
@@ -17,6 +19,7 @@ export default function RequireAuth({ children }: { children: React.ReactNode })
     setLoading(true); setError('');
     const err = await signIn(email.trim(), password);
     if (err) { setError(err); setLoading(false); }
+    else { navigate('/'); }
   };
 
   return (

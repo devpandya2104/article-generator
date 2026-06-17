@@ -13,6 +13,7 @@ import {
 import { supabase } from '../lib/supabase';
 import CustomCursor from '../components/CustomCursor';
 import ProfileWidget from '../components/ProfileWidget';
+import Sidebar from '../components/Sidebar';
 import { useAuth } from '../contexts/AuthContext';
 import { DEFAULT_TITLE_PROMPT, DEFAULT_ARTICLE_PROMPT } from '../constants/prompts';
 
@@ -525,22 +526,14 @@ export default function ArticleGenerator() {
      RENDER
   ══════════════════════════ */
   return (
-    <div ref={rootRef} className="min-h-screen bg-[#04040a] text-slate-100 overflow-x-hidden">
+    <div ref={rootRef} className="min-h-screen bg-[#04040a] text-slate-100 overflow-x-hidden pl-48">
+      <Sidebar />
 
       {/* ── Custom cursor ── */}
       <CustomCursor />
 
       {/* ── Confetti container ── */}
-      <div id="confetti-root" className="fixed inset-0 pointer-events-none overflow-hidden z-50" aria-hidden />
-
-      {/* ── Back to dashboard ── */}
-      <button
-        onClick={() => navigate('/')}
-        className="fixed top-5 left-6 z-40 flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-500 backdrop-blur-md transition-all hover:border-violet-500/30 hover:bg-violet-500/[0.07] hover:text-slate-200"
-      >
-        <ChevronLeft className="h-3.5 w-3.5" />
-        Dashboard
-      </button>
+      <div id="confetti-root" className="fixed inset-0 pointer-events-none overflow-hidden z-[60]" aria-hidden />
 
       {/* ── Background ── */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none select-none" aria-hidden>

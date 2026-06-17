@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
 import ProfileWidget from '../components/ProfileWidget';
+import Sidebar from '../components/Sidebar';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { DEFAULT_TITLE_PROMPT, DEFAULT_ARTICLE_PROMPT } from '../constants/prompts';
@@ -794,23 +795,21 @@ export default function SheetGeneratorOpenAI() {
 
   /* ── Not configured ── */
   if (!scriptUrl) return (
-    <div className="min-h-screen bg-[#04040a] text-slate-100 overflow-x-hidden px-6">
+    <div className="min-h-screen bg-[#04040a] text-slate-100 overflow-x-hidden pl-48">
+      <Sidebar />
       <CustomCursor />
-      <button onClick={() => navigate('/')}
-        className="fixed top-5 left-6 z-40 flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-white/[0.04] px-3 py-2 text-xs font-bold text-slate-500 backdrop-blur-md hover:border-sky-500/30 hover:bg-sky-500/[0.07] hover:text-slate-200 transition-all">
-        <ChevronLeft className="h-3.5 w-3.5" />Dashboard
-      </button>
       <SetupPanel onSave={handleSetup} />
     </div>
   );
 
   /* ══ Configured view ════════════════════════════════════════════ */
   return (
-    <div className="min-h-screen bg-[#04040a] text-slate-100 overflow-x-hidden">
+    <div className="min-h-screen bg-[#04040a] text-slate-100 overflow-x-hidden pl-48">
+      <Sidebar />
       <CustomCursor />
 
       {/* ── Header ── */}
-      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between border-b border-white/[0.05] bg-[#04040a]/80 px-8 py-4 backdrop-blur-xl">
+      <header className="fixed top-0 left-48 right-0 z-40 flex items-center justify-between border-b border-white/[0.05] bg-[#04040a]/80 px-8 py-4 backdrop-blur-xl">
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/')} className="flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-300 transition-colors">
             <ChevronLeft className="h-3.5 w-3.5" />Dashboard
