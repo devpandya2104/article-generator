@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const ANON_KEY      = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
@@ -66,6 +67,7 @@ interface HistoryBatch {
   id: string;
   batch_started_at: string | null;
   batch_completed_at: string | null;
+  created_by: string | null;
   articles: HistoryArticle[];
 }
 
@@ -391,7 +393,7 @@ function SheetHistoryTab() {
     try {
       const { data: batchData } = await supabase
         .from('article_batches')
-        .select('id, batch_started_at, batch_completed_at')
+        .select('id, batch_started_at, batch_completed_at, created_by')
         .eq('source', 'sheet')
         .order('batch_started_at', { ascending: false })
         .limit(30);
@@ -467,6 +469,12 @@ function SheetHistoryTab() {
                   {date && <span className="ml-2 text-xs font-semibold text-slate-600">
                     {date.toLocaleDateString()} · {date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>}
+                  {batch.created_by && (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-md border border-violet-500/20 bg-violet-500/10 px-2 py-0.5 text-[10px] font-semibold text-violet-400">
+                      <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                      {batch.created_by}
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-3 text-xs font-semibold">
                   <span className="text-slate-500">{total} article{total !== 1 ? 's' : ''}</span>
@@ -520,6 +528,7 @@ function SheetHistoryTab() {
 /* ══ Main ═══════════════════════════════════════════════════════════ */
 export default function SheetGenerator() {
   const navigate = useNavigate();
+  const { session } = useAuth();
   const [scriptUrl, setScriptUrl]   = useState(() => localStorage.getItem(STORAGE_KEY) || '');
   const [activeTab, setActiveTab]   = useState<ActiveTab>('generator');
   const [sheetRows, setSheetRows]   = useState<SheetRow[]>([]);
@@ -539,13 +548,6 @@ export default function SheetGenerator() {
   const doneCount   = procRows.filter(r => r.procStatus === 'done').length;
   const failedCount = procRows.filter(r => r.procStatus === 'failed').length;
   const activeCount = procRows.filter(r => ['title','article','doc','sheet'].includes(r.procStatus)).length;
-
-  /* ── Anon auth ── */
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) supabase.auth.signInAnonymously();
-    });
-  }, []);
 
   /* ── Save URL ── */
   const saveUrl = async () => {
@@ -600,6 +602,7 @@ export default function SheetGenerator() {
         max_word_count: 0,
         source: 'sheet',
         batch_started_at: new Date().toISOString(),
+        created_by: session?.user?.email ?? null,
       }).select('id').single();
       batchId = batch?.id ?? null;
     } catch { /* non-fatal */ }

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import CustomCursor from '../components/CustomCursor';
+import { useAuth } from '../contexts/AuthContext';
 
 const OPENAI_MODELS = [
   { id: 'gpt-5.4-mini',  label: 'GPT-5.4 Mini',  desc: '★ Recommended'   },
@@ -47,6 +48,7 @@ interface HistoryBatch {
   id: string; topic: string; created_at: string;
   requested_count: number; language: string; articles: HistoryBatchArticle[];
   batch_started_at?: string | null; batch_completed_at?: string | null;
+  created_by?: string | null;
 }
 
 const LANGUAGES = [
@@ -188,6 +190,7 @@ function HeroChar({ char, gradient }: { char: string; gradient?: boolean }) {
 ══════════════════════════════════════════ */
 export default function ArticleGenerator() {
   const navigate = useNavigate();
+  const { session, isAdmin } = useAuth();
   const [activeTab, setActiveTab]         = useState<Tab>('generator');
   const [topic, setTopic]                 = useState('');
   const [count, setCount]                 = useState(5);
@@ -247,13 +250,6 @@ export default function ArticleGenerator() {
     })();
   }, []);
 
-  /* Auth */
-  useEffect(() => {
-    (async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session?.user) await supabase.auth.signInAnonymously();
-    })();
-  }, []);
 
   useEffect(() => {
     if (editingIndex !== null) editInputRef.current?.focus();
@@ -427,7 +423,7 @@ export default function ArticleGenerator() {
     setHistoryLoading(true);
     try {
       const { data: batches } = await supabase
-        .from('article_batches').select('id,topic,created_at,requested_count,language,batch_started_at,batch_completed_at')
+        .from('article_batches').select('id,topic,created_at,requested_count,language,batch_started_at,batch_completed_at,created_by')
         .order('created_at', { ascending: false });
       if (!batches || !batches.length) { setHistoryBatches([]); return; }
       const { data: arts } = await supabase
@@ -490,6 +486,7 @@ export default function ArticleGenerator() {
           title_prompt: isCustomTitlePrompt ? titlePrompt : '',
           article_prompt: isCustomArticlePrompt ? articlePrompt : '',
           batch_started_at: new Date(now).toISOString(),
+          created_by: session?.user?.email ?? null,
         }).select('id').maybeSingle();
         if (batch?.id) { currentBatchId = batch.id; setBatchId(batch.id); }
       }
@@ -722,6 +719,13 @@ export default function ArticleGenerator() {
                             {totalWords > 0 && <>
                               <span className="text-slate-700">·</span>
                               <span className="text-xs text-slate-500">{totalWords.toLocaleString()} words</span>
+                            </>}
+                            {batch.created_by && <>
+                              <span className="text-slate-700">·</span>
+                              <span className="inline-flex items-center gap-1 rounded-md border border-violet-500/20 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold text-violet-400">
+                                <svg className="h-2.5 w-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                {batch.created_by}
+                              </span>
                             </>}
                           </div>
                         </div>
@@ -1026,19 +1030,24 @@ export default function ArticleGenerator() {
                         <div key={p.id}>
                           <div className="flex items-center justify-between mb-2">
                             <label className={labelCls}>{p.label}</label>
-                            {p.isCustom && <button onClick={p.onReset} className="text-[10px] font-bold text-violet-400 hover:text-violet-300 transition">Reset</button>}
+                            <div className="flex items-center gap-3">
+                              {!isAdmin && <span className="text-[10px] font-bold text-slate-600">view only</span>}
+                              {isAdmin && p.isCustom && <button onClick={p.onReset} className="text-[10px] font-bold text-violet-400 hover:text-violet-300 transition">Reset</button>}
+                            </div>
                           </div>
-                          <textarea value={p.value} onChange={e => p.onChange(e.target.value)} rows={p.rows}
-                            className="w-full rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-3 font-mono text-[11px] leading-relaxed text-slate-300 outline-none focus:border-violet-400/50 focus:ring-1 focus:ring-violet-500/20 resize-none transition" />
+                          <textarea value={p.value} onChange={isAdmin ? e => p.onChange(e.target.value) : undefined} readOnly={!isAdmin} rows={p.rows}
+                            className={`w-full rounded-xl border px-4 py-3 font-mono text-[11px] leading-relaxed outline-none resize-none transition ${isAdmin ? 'border-white/[0.1] bg-white/[0.04] text-slate-300 focus:border-violet-400/50 focus:ring-1 focus:ring-violet-500/20' : 'border-white/[0.05] bg-white/[0.02] text-slate-500 cursor-default'}`} />
                         </div>
                       ))}
                       <div className="flex items-center justify-between border-t border-white/[0.06] pt-5">
-                        <p className="text-xs text-slate-500">Shared prompts apply for all sessions.</p>
-                        <MagneticBtn onClick={savePromptsToDb} disabled={savingPrompts}
-                          className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-white btn-glow disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
-                          style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}>
-                          {savingPrompts ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…</> : <><Check className="h-3.5 w-3.5" />Save Prompts</>}
-                        </MagneticBtn>
+                        <p className="text-xs text-slate-500">{isAdmin ? 'Shared prompts apply for all sessions.' : 'Only admins can edit and save prompts.'}</p>
+                        {isAdmin && (
+                          <MagneticBtn onClick={savePromptsToDb} disabled={savingPrompts}
+                            className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black text-white btn-glow disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none"
+                            style={{ background: 'linear-gradient(135deg,#7c3aed,#4f46e5)' }}>
+                            {savingPrompts ? <><Loader2 className="h-3.5 w-3.5 animate-spin" />Saving…</> : <><Check className="h-3.5 w-3.5" />Save Prompts</>}
+                          </MagneticBtn>
+                        )}
                       </div>
                     </div>
                   )}
