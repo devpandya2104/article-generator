@@ -9,6 +9,7 @@ import {
   ArrowRight, Zap, Sheet, FileText,
 } from 'lucide-react';
 import CustomCursor from '../components/CustomCursor';
+import { useAuth } from '../contexts/AuthContext';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -26,7 +27,7 @@ const TOOLS = [
     desc: 'Read orders from a Google Sheet, auto-generate articles, and write back status, doc URL, and word count.',
     Icon: Sheet, num: '02', accent: '#10b981', accentRgb: '16,185,129',
     grad: 'from-emerald-500 to-teal-600', status: 'live' as const, href: '/sheet-generator',
-    tags: ['Google Sheets', 'Batch', 'Auto'],
+    tags: ['Google Sheets', 'Batch', 'Auto'], adminOnly: true,
   },
   {
     id: 'doc-converter', title: 'Doc Converter', tagline: 'Word → Google Docs instantly',
@@ -169,6 +170,8 @@ export default function Dashboard() {
   const locoRef  = useRef<LocomotiveScroll | null>(null);
   const navigate = useNavigate();
   const heroRef  = useRef<HTMLElement>(null);
+  const { isAdmin } = useAuth();
+  const visibleTools = TOOLS.filter(t => !('adminOnly' in t && t.adminOnly && !isAdmin));
 
   useEffect(() => {
     const loco = new LocomotiveScroll({
@@ -459,7 +462,7 @@ export default function Dashboard() {
             </h2>
           </div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            {TOOLS.filter(t => t.status === 'live').map(tool => (
+            {visibleTools.filter(t => t.status === 'live').map(tool => (
               <div key={tool.id} className="d-tool-card">
                 <ToolCard tool={tool} />
               </div>
@@ -488,7 +491,7 @@ export default function Dashboard() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:gap-5" style={{ perspective: '1400px' }}>
-            {TOOLS.map(tool => (
+            {visibleTools.map(tool => (
               <div key={tool.id} className="d-tool-card">
                 <ToolCard tool={tool} />
               </div>
