@@ -66,9 +66,8 @@ Return ONLY a JSON array of strings. Example: ["Title One", "Title Two"]`;
       ? [{ role: "user", content: `${systemContent}\n\n${prompt}` }]
       : [{ role: "system", content: systemContent }, { role: "user", content: prompt }];
 
-    // max_completion_tokens is required for all modern OpenAI models (GPT-5.x dropped max_tokens)
+    // temperature is omitted — GPT-5.x models only support the default value
     const reqBody: Record<string, unknown> = { model, messages, max_completion_tokens: 4096 };
-    if (!isReasoningModel) reqBody.temperature = 0.9;
 
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",

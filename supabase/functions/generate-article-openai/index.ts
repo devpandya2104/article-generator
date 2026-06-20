@@ -126,9 +126,8 @@ Deno.serve(async (req: Request) => {
       ? [{ role: "user", content: `${DEFAULT_SYSTEM}\n\n${userPrompt}` }]
       : [{ role: "system", content: DEFAULT_SYSTEM }, { role: "user", content: userPrompt }];
 
-    // max_completion_tokens is required for all modern OpenAI models (GPT-5.x dropped max_tokens)
+    // temperature is omitted — GPT-5.x models only support the default value
     const reqBody: Record<string, unknown> = { model, messages, max_completion_tokens: 16000 };
-    if (!isReasoningModel) reqBody.temperature = 0.7;
 
     const res = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
