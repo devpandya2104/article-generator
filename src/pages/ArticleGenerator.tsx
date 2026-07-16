@@ -135,7 +135,6 @@ export default function ArticleGenerator() {
   const [language, setLanguage]           = useState('English');
   const [openaiModel, setOpenaiModel]     = useState<OpenAIModelId>(() => (localStorage.getItem(OPENAI_MODEL_KEY) as OpenAIModelId) || 'gpt-5.4-mini');
   const [anchors, setAnchors]             = useState<Anchor[]>([]);
-  const [imageUrl, setImageUrl]           = useState('');
   const [titlePrompt, setTitlePrompt]     = useState(DEFAULT_TITLE_PROMPT);
   const [articlePrompt, setArticlePrompt] = useState(DEFAULT_ARTICLE_PROMPT);
   const [savingPrompts, setSavingPrompts] = useState(false);
@@ -450,7 +449,6 @@ export default function ArticleGenerator() {
           const artData = await edgeFetch<{ html: string }>('generate-article-openai', {
             title: titles[i], topic: topic.trim(), minWordCount, maxWordCount,
             language, anchors: validAnchors, articlePrompt, model: openaiModel,
-            imageUrl: imageUrl.trim() || undefined,
           });
           if (abortRef.current) return;
           const wc = countWords(artData.html);
@@ -494,7 +492,7 @@ export default function ArticleGenerator() {
     const artStart = Date.now();
     updateArticle(idx, { status: 'generating', error: undefined, startTime: artStart, endTime: undefined });
     try {
-      const artData = await edgeFetch<{ html: string }>('generate-article-openai', { title: article.title, topic: topic.trim(), minWordCount, maxWordCount, language, anchors: validAnchors, articlePrompt, model: openaiModel, imageUrl: imageUrl.trim() || undefined });
+      const artData = await edgeFetch<{ html: string }>('generate-article-openai', { title: article.title, topic: topic.trim(), minWordCount, maxWordCount, language, anchors: validAnchors, articlePrompt, model: openaiModel });
       const wc = countWords(artData.html);
       updateArticle(idx, { status: 'uploading', bodyHtml: artData.html, wordCount: wc });
       const docData = await edgeFetch<{ googleDocId: string; googleDocUrl: string }>('create-article-doc', { title: article.title, bodyHtml: artData.html, topic: topic.trim() });
@@ -872,19 +870,6 @@ export default function ArticleGenerator() {
                           </div>
                         ))}
                       </div>
-                    </div>
-
-                    {/* Image URL */}
-                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] p-5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <ExternalLink className="h-3.5 w-3.5 text-amber-400" />
-                        <span className="text-xs font-black uppercase tracking-[0.15em] text-slate-300">Image Source URL</span>
-                        <span className="text-[10px] text-slate-600 font-semibold">(optional)</span>
-                      </div>
-                      <input type="url" value={imageUrl} onChange={e => setImageUrl(e.target.value)}
-                        placeholder="https://example.com/image.jpg"
-                        className="w-full rounded-lg border border-white/[0.1] bg-white/[0.05] px-3 py-2 text-xs text-white placeholder-slate-500 outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-500/20 transition" />
-                      <p className="mt-2 text-[10px] text-slate-600">Image will be inserted after the first paragraph of every article.</p>
                     </div>
 
                     {/* Title source */}

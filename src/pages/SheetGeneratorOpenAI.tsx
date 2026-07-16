@@ -51,7 +51,6 @@ interface SheetRow {
   'Language': string;
   'Min. Word Count': string;
   'Max. Word Count': string;
-  'Image URL': string;
   'Status': string;
   'Article DOC URL': string;
   'DOC Word count': string;
@@ -726,13 +725,11 @@ export default function SheetGeneratorOpenAI() {
             .map(n => ({ text: String(row[`Anchor Text ${n}`]), url: String(row[`Anchor URL ${n}`]) }));
           const minWordCount = parseInt(row['Min. Word Count']) || 1000;
           const maxWordCount = parseInt(row['Max. Word Count']) || 1300;
-          const imageUrl = (row['Image URL'] as string)?.trim() || '';
 
           /* 3 ─ Article HTML */
           upd(rid, { procStatus: 'article' });
           const artData = await edgeFetch<{ html: string }>('generate-article-openai', {
             title, anchors, minWordCount, maxWordCount, language, model,
-            imageUrl: imageUrl || undefined,
             ...(articlePrompt ? { articlePrompt } : {}),
           });
           const wc = countWords(artData.html);

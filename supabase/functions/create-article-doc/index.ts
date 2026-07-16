@@ -248,7 +248,7 @@ async function fixTableBorders(
   );
 }
 
-async function fetchPexelsImage(query: string): Promise<string | null> {
+async function fetchPexelsImage(query: string): Promise<{ imageUrl: string; sourceUrl: string } | null> {
   const apiKey = Deno.env.get("PEXELS_API_KEY") || "Rz8iC6kgvstMBuPEtAfpoJFUJHOvi28mLo1sblEIsnuwAsiTmBYzBR1Z";
   if (!apiKey) return null;
   try {
@@ -262,7 +262,9 @@ async function fetchPexelsImage(query: string): Promise<string | null> {
     const photos = data.photos;
     if (!photos || photos.length === 0) return null;
     const photo = photos[Math.floor(Math.random() * photos.length)];
-    return photo.src?.landscape || photo.src?.large || null;
+    const imageUrl = photo.src?.landscape || photo.src?.large || null;
+    if (!imageUrl) return null;
+    return { imageUrl, sourceUrl: photo.url || "https://www.pexels.com" };
   } catch {
     return null;
   }
@@ -272,8 +274,9 @@ const FONT = "Outfit";
 const BODY_SIZE = "14pt";
 
 function applyFontToAnchors(html: string, fontStyle: string): string {
+  const linkStyle = fontStyle.replace("color:#000", "color:#1a0dab") + ";text-decoration:underline";
   return html.replace(/<a\s([^>]*)>([\s\S]*?)<\/a>/gi, (_m, attrs, txt) =>
-    `<a ${attrs}><span style="${fontStyle}">${txt}</span></a>`
+    `<a ${attrs}><span style="${linkStyle}">${txt}</span></a>`
   );
 }
 
@@ -318,12 +321,12 @@ function wrapTextInSpans(html: string): string {
     });
 }
 
-function buildFullHtml(title: string, bodyHtml: string, imageUrl: string | null): string {
+function buildFullHtml(title: string, bodyHtml: string, pexels: { imageUrl: string; sourceUrl: string } | null): string {
   const wrapped = wrapTextInSpans(bodyHtml);
   const titleSpan = `<span style="font-family:'${FONT}';font-size:23pt;font-weight:700;color:#000">`;
 
-  const afterTitle = imageUrl
-    ? `<p style="padding-top:12pt;padding-bottom:12pt;margin:0;text-align:center"><img src="${imageUrl}" width="680" style="width:680px;max-width:100%;border-radius:8px" /></p>`
+  const afterTitle = pexels
+    ? `<p style="padding-top:12pt;padding-bottom:6pt;margin:0;text-align:center"><img src="${pexels.imageUrl}" width="680" style="width:680px;max-width:100%;border-radius:8px" /></p><p style="padding-bottom:12pt;margin:0;text-align:center"><span style="font-family:'${FONT}';font-size:9pt;color:#666">Image source: </span><a href="${pexels.sourceUrl}"><span style="font-family:'${FONT}';font-size:9pt;color:#1a0dab;text-decoration:underline">${pexels.sourceUrl}</span></a></p>`
     : `<p class="spacer"><span style="font-family:'${FONT}';font-size:${BODY_SIZE};color:#000"></span></p>`;
 
   return `<html><head><meta charset="utf-8"><title>${title}</title>
@@ -361,8 +364,8 @@ Deno.serve(async (req: Request) => {
       return json(400, { error: "Provide title and bodyHtml." });
     }
 
-    const imageUrl = await fetchPexelsImage(topic || title);
-    const fullHtml = buildFullHtml(title, bodyHtml, imageUrl);
+    const pexels = await fetchPexelsImage(topic || title);
+    const fullHtml = buildFullHtml(title, bodyHtml, pexels);
     const htmlBytes = new TextEncoder().encode(fullHtml);
 
     const tokens = await refreshOwnerAccessToken();

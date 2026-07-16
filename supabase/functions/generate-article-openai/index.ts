@@ -109,7 +109,6 @@ Deno.serve(async (req: Request) => {
     const customPrompt: string = body.articlePrompt || "";
     const language: string = body.language || "English";
     const model: string = body.model || "gpt-5.4-mini";
-    const imageUrl: string = body.imageUrl || "";
 
     if (!title) return json(400, { error: "Provide a title." });
 
@@ -154,18 +153,6 @@ Deno.serve(async (req: Request) => {
     let html = data.choices?.[0]?.message?.content?.trim() || "";
     html = html.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "");
     html = html.replace(/<h1[^>]*>[\s\S]*?<\/h1>\s*/gi, "");
-
-    // Fix anchor link colors
-    html = html.replace(/<a\s+href=/gi, '<a style="color:#1a0dab;text-decoration:underline;" href=');
-
-    // Inject image after first paragraph if provided
-    if (imageUrl && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"))) {
-      const imgTag = `<figure style="margin:1.5rem 0;"><img src="${imageUrl}" alt="${title.replace(/"/g, "&quot;")}" style="width:100%;max-width:100%;height:auto;display:block;border-radius:6px;" /></figure>`;
-      const firstPClose = html.indexOf("</p>");
-      if (firstPClose !== -1) {
-        html = html.slice(0, firstPClose + 4) + imgTag + html.slice(firstPClose + 4);
-      }
-    }
 
     return json(200, { html });
   } catch (e) {

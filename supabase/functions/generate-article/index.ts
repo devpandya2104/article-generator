@@ -164,9 +164,6 @@ Deno.serve(async (req: Request) => {
     html = html.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "");
     html = html.replace(/<h1[^>]*>[\s\S]*?<\/h1>\s*/gi, "");
 
-    // Fix anchor link colors
-    html = html.replace(/<a\s+href=/gi, '<a style="color:#1a0dab;text-decoration:underline;" href=');
-
     return json(200, { html });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
