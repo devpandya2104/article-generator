@@ -34,6 +34,10 @@ CONTENT REQUIREMENTS:
 - Purpose: informative and educational, never promotional
 - Keep everything positive and factual
 - No brand names or company names anywhere
+- Every sentence must carry a specific, useful point — no sentence exists just to fill space
+- Stay strictly on the topic stated in the title — do not drift into loosely related areas
+- Never repeat a point that was already made in an earlier section
+- No meta-commentary ("in this article", "we will look at", "as mentioned above", "let's explore")
 
 STRUCTURE RULES:
 - NO H1 tag (title is added separately)
@@ -70,11 +74,14 @@ ANCHOR LINK RULES (CRITICAL):
 BANNED WORDS — never use these anywhere in the article:
 wondering, wondered, this guide, diving, dive, embark, discover, engage, engaging, world, treasure, trove, seeds, sprout, harnessing, power, game-changer, emerge, ladder, plethora, enthusiast, seamless, emphasized, tenure, journey, realm, nuances, versatility, sophisticated, landscape, in the ever-evolving, seeking, shed, merely, embrace, presence, handy, super, notable, lies, delve, versatile, enhance, great, whether, embraced, designed, robust, revolutionize, cutting-edge, groundbreaking, transformative, leverage, holistic, synergy, unpack, demystify, navigating, unlock, crucial, vital, essential, it's worth noting, at the end of the day, in today's world, in conclusion, to summarize
 
+FILLER PHRASES TO AVOID — never use these sentence starters or transitions:
+"It is important to note", "One thing to keep in mind", "There are many factors", "When it comes to", "Having said that", "With that in mind", "It goes without saying", "Needless to say", "In other words", "Simply put", "At its core", "First and foremost", "Last but not least", "All in all", "As we can see"
+
 WORD COUNT RULE (CRITICAL):
 - You MUST write between {minWordCount} and {maxWordCount} words
 - Before finishing, count your words mentally and adjust
-- If you are below {minWordCount}, expand existing sections with more detail
-- If you are above {maxWordCount}, trim sentences and remove filler
+- If below word count: add a new section with fresh, specific information — do NOT pad existing paragraphs with repetition
+- If above {maxWordCount}: trim sentences and remove filler
 - Do NOT submit the article if it falls outside this range
 
 QUALITY CHECKLIST (apply before finishing):
@@ -85,7 +92,9 @@ QUALITY CHECKLIST (apply before finishing):
 - Are all headings properly capitalized?
 - Is the first HTML element a <p> tag?
 - Are all banned words avoided?
-- Is the tone consistent throughout?`;
+- Is the tone consistent throughout?
+- Does every sentence contribute something new and specific?
+- Does the article stay focused on the exact title — no tangents?`;
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response(null, { status: 200, headers: corsHeaders });
@@ -100,6 +109,7 @@ Deno.serve(async (req: Request) => {
     const customPrompt: string = body.articlePrompt || "";
     const language: string = body.language || "English";
     const model: string = body.model || "gpt-5.4-mini";
+    const imageUrl: string = body.imageUrl || "";
 
     if (!title) return json(400, { error: "Provide a title." });
 
@@ -144,6 +154,18 @@ Deno.serve(async (req: Request) => {
     let html = data.choices?.[0]?.message?.content?.trim() || "";
     html = html.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "");
     html = html.replace(/<h1[^>]*>[\s\S]*?<\/h1>\s*/gi, "");
+
+    // Fix anchor link colors
+    html = html.replace(/<a\s+href=/gi, '<a style="color:#1a0dab;text-decoration:underline;" href=');
+
+    // Inject image after first paragraph if provided
+    if (imageUrl && (imageUrl.startsWith("http://") || imageUrl.startsWith("https://"))) {
+      const imgTag = `<figure style="margin:1.5rem 0;"><img src="${imageUrl}" alt="${title.replace(/"/g, "&quot;")}" style="width:100%;max-width:100%;height:auto;display:block;border-radius:6px;" /></figure>`;
+      const firstPClose = html.indexOf("</p>");
+      if (firstPClose !== -1) {
+        html = html.slice(0, firstPClose + 4) + imgTag + html.slice(firstPClose + 4);
+      }
+    }
 
     return json(200, { html });
   } catch (e) {

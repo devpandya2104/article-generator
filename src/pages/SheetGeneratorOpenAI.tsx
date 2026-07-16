@@ -51,6 +51,7 @@ interface SheetRow {
   'Language': string;
   'Min. Word Count': string;
   'Max. Word Count': string;
+  'Image URL': string;
   'Status': string;
   'Article DOC URL': string;
   'DOC Word count': string;
@@ -693,36 +694,45 @@ export default function SheetGeneratorOpenAI() {
           /* 0 ─ Mark row as Processing in sheet immediately */
           await updateRow(rid, [{ column: 'Status', value: 'Processing' }]);
 
-          /* 1 ─ Title */
+          /* 1 ─ Title (generate if missing, translate if needed) */
+          const language     = row['Language']?.trim()        || 'English';
           let title = row['Article Title']?.trim();
           const needTitle = !title;
-          if (needTitle) {
+          const needsTranslation = !!title && language.toLowerCase() !== 'english';
+
+          if (needTitle || needsTranslation) {
             upd(rid, { procStatus: 'title' });
+            const translationPrompt = needsTranslation
+              ? `Translate this article title to ${language}. Return ONLY a JSON array with one string — the translated title. Do not change the meaning, keep it specific and informative. Title: "${title}"\n\nReturn ONLY: ["translated title here"]`
+              : undefined;
             const res = await edgeFetch<{ titles: string[] }>('generate-titles-openai', {
-              topic: DEFAULT_TOPIC, count: 1, model, language: row['Language']?.trim() || 'English',
-              ...(titlePrompt ? { titlePrompt } : {}),
+              topic: needsTranslation ? title : DEFAULT_TOPIC,
+              count: 1, model, language,
+              titlePrompt: translationPrompt ?? (titlePrompt || undefined),
             });
-            title = res.titles[0] || `${DEFAULT_TOPIC} Guide`;
-            upd(rid, { finalTitle: title });
-            await updateRow(rid, [{
-              column: 'Article Title',
-              value: title,
-              bgColor: TITLE_HIGHLIGHT_COLOR,
-            }]);
+            const newTitle = res.titles[0];
+            if (newTitle) {
+              title = newTitle;
+              upd(rid, { finalTitle: title });
+              await updateRow(rid, [{ column: 'Article Title', value: title, bgColor: TITLE_HIGHLIGHT_COLOR }]);
+            } else if (needTitle) {
+              title = `${DEFAULT_TOPIC} Guide`;
+            }
           }
 
           /* 2 ─ Anchors */
           const anchors = [1, 2, 3]
             .filter(n => row[`Anchor Text ${n}`] && row[`Anchor URL ${n}`])
             .map(n => ({ text: String(row[`Anchor Text ${n}`]), url: String(row[`Anchor URL ${n}`]) }));
-          const language     = row['Language']?.trim()        || 'English';
           const minWordCount = parseInt(row['Min. Word Count']) || 1000;
           const maxWordCount = parseInt(row['Max. Word Count']) || 1300;
+          const imageUrl = (row['Image URL'] as string)?.trim() || '';
 
           /* 3 ─ Article HTML */
           upd(rid, { procStatus: 'article' });
           const artData = await edgeFetch<{ html: string }>('generate-article-openai', {
             title, anchors, minWordCount, maxWordCount, language, model,
+            imageUrl: imageUrl || undefined,
             ...(articlePrompt ? { articlePrompt } : {}),
           });
           const wc = countWords(artData.html);

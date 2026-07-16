@@ -23,6 +23,10 @@ CONTENT REQUIREMENTS:
 - Purpose: informative and educational, never promotional
 - Keep everything positive and factual
 - No brand names or company names anywhere
+- Every sentence must carry a specific, useful point — no sentence exists just to fill space
+- Stay strictly on the topic stated in the title — do not drift into loosely related areas
+- Never repeat a point that was already made in an earlier section
+- No meta-commentary ("in this article", "we will look at", "as mentioned above", "let's explore")
 
 STRUCTURE RULES:
 - NO H1 tag (title is added separately)
@@ -54,9 +58,13 @@ ANCHOR LINK RULES (CRITICAL):
 BANNED WORDS — never use these anywhere in the article:
 wondering, wondered, this guide, diving, dive, embark, discover, engage, engaging, world, treasure, trove, seeds, sprout, harnessing, power, game-changer, emerge, ladder, plethora, enthusiast, seamless, emphasized, tenure, journey, realm, nuances, versatility, sophisticated, landscape, in the ever-evolving, seeking, shed, merely, embrace, presence, handy, super, notable, lies, delve, versatile, enhance, great, whether, embraced, designed, robust, revolutionize, cutting-edge, groundbreaking, transformative, leverage, holistic, synergy, unpack, demystify, navigating, unlock, crucial, vital, essential, it's worth noting, at the end of the day, in today's world, in conclusion, to summarize
 
+FILLER PHRASES TO AVOID — never use these sentence starters or transitions:
+"It is important to note", "One thing to keep in mind", "There are many factors", "When it comes to", "Having said that", "With that in mind", "It goes without saying", "Needless to say", "In other words", "Simply put", "At its core", "First and foremost", "Last but not least", "All in all", "As we can see"
+
 WORD COUNT RULE (CRITICAL):
 - You MUST write between {minWordCount} and {maxWordCount} words
 - Before finishing, count your words mentally and adjust
+- If below word count: add a new section with fresh, specific information — do NOT pad existing paragraphs with repetition
 
 QUALITY CHECKLIST:
 - Is the word count strictly between {minWordCount} and {maxWordCount}?
@@ -64,4 +72,6 @@ QUALITY CHECKLIST:
 - Does every section add real value, not just filler?
 - Does it read like a human wrote it, not an AI?
 - Are all headings properly capitalized?
-- Is the first HTML element a <p> tag? Are all banned words avoided?`;
+- Is the first HTML element a <p> tag? Are all banned words avoided?
+- Does every sentence contribute something new and specific?
+- Does the article stay focused on the exact title — no tangents?`;
