@@ -163,6 +163,7 @@ Deno.serve(async (req: Request) => {
 
     html = html.replace(/^```html?\s*/i, "").replace(/\s*```$/i, "");
     html = html.replace(/<h1[^>]*>[\s\S]*?<\/h1>\s*/gi, "");
+    html = html.replace(/<a(\s)/gi, '<a style="color:#1a0dab;text-decoration:underline;"$1');
 
     return json(200, { html });
   } catch (e) {

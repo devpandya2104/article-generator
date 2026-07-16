@@ -251,8 +251,7 @@ async function fixTableBorders(
 async function fetchPexelsImage(query: string): Promise<{ imageUrl: string; sourceUrl: string } | null> {
   const apiKey = Deno.env.get("PEXELS_API_KEY") || "Rz8iC6kgvstMBuPEtAfpoJFUJHOvi28mLo1sblEIsnuwAsiTmBYzBR1Z";
   if (!apiKey) return null;
-  try {
-    const page = Math.floor(Math.random() * 5) + 1;
+  const tryFetch = async (page: number) => {
     const res = await fetch(
       `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&per_page=15&page=${page}&orientation=landscape`,
       { headers: { Authorization: apiKey } }
@@ -265,6 +264,11 @@ async function fetchPexelsImage(query: string): Promise<{ imageUrl: string; sour
     const imageUrl = photo.src?.landscape || photo.src?.large || null;
     if (!imageUrl) return null;
     return { imageUrl, sourceUrl: photo.url || "https://www.pexels.com" };
+  };
+  try {
+    // Try a random page 1-2; fall back to page 1 if empty
+    const randomPage = Math.floor(Math.random() * 2) + 1;
+    return (await tryFetch(randomPage)) ?? (randomPage !== 1 ? await tryFetch(1) : null);
   } catch {
     return null;
   }
